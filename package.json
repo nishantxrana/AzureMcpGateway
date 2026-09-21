@@ -1,0 +1,55 @@
+{
+  "name": "ado-mcp-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-organization Azure DevOps MCP Gateway for Microsoft Copilot Studio",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "verify:local": "node scripts/verify/local.mjs",
+    "verify:org": "node scripts/verify/org.mjs",
+    "verify:security": "node scripts/verify/security.mjs",
+    "verify:azure": "node scripts/verify/azure-preflight.mjs",
+    "verify:secrets": "node scripts/verify/secrets-scan.mjs",
+    "verify:drift": "node scripts/verify/tool-drift.mjs",
+    "verify:soak": "node scripts/verify/soak.mjs",
+    "verify:prereq": "node scripts/verify/prereq.mjs",
+    "verify:package": "node scripts/verify/package.mjs",
+    "package": "node scripts/package.mjs",
+    "preonboard": "npm run build",
+    "onboard": "node scripts/onboard-org.mjs"
+  },
+  "dependencies": {
+    "@azure-devops/mcp": "2.10.0",
+    "@azure/identity": "^4.10.1",
+    "@azure/keyvault-secrets": "^4.9.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.1.0",
+    "pino": "^9.7.0",
+    "zod": "^3.25.67",
+    "zod-to-json-schema": "^3.24.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.32",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "mcp-proxy": "^6.7.19",
+    "prettier": "^3.6.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.34.1",
+    "vitest": "^3.2.4"
+  }
+}

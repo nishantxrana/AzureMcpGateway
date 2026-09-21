@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "generatedFrom": "@azure-devops/mcp@2.10.0 (action lists reviewed by hand against the live tool list)",
+  "description": "Single source of truth for which tools and actions the gateway exposes. Default-deny: anything not listed is blocked. Read by src/ado/toolPolicy.ts and scripts/verify/tool-drift.mjs.",
+  "allowedActions": {
+    "pipelines_build": ["list", "get_status", "get_changes"],
+    "pipelines_build_log": ["list", "get_content"],
+    "pipelines_definition": ["list", "list_revisions"],
+    "pipelines_run": ["get", "list"],
+    "repo_repository": ["get", "list"],
+    "repo_pull_request": ["get", "list", "list_by_commits"],
+    "repo_pull_request_thread": ["list", "list_comments"],
+    "repo_branch": ["get", "list", "list_mine"],
+    "repo_file": ["get_content", "list_directory"],
+    "wit_work_item": ["get", "get_batch", "list_comments", "my", "list_revisions", "list_for_iteration", "get_type"],
+    "wit_query": ["get", "get_results", "wiql"],
+    "wit_backlog": ["list", "list_work_items"],
+    "wiki": ["list_wikis", "get_wiki", "list_pages", "get_page", "get_page_content"]
+  },
+  "noActionTools": ["core_list_projects", "core_list_project_teams", "repo_search_commits"],
+  "reviewedBlockedActions": {
+    "wit_backlog": ["reorder"]
+  }
+}

@@ -1,0 +1,32 @@
+---
+description: Standing rules for the multi-org Azure DevOps MCP gateway
+alwaysApply: true
+---
+
+# ADO MCP Gateway - standing rules
+
+## Where things live (this kit)
+- `.cursor/rules/*.mdc`: the specification, split by concern. `10-architecture` (facts, design, registry), `20-verification` (scripts and tests), `30-delivery` (packaging, Bicep, CI/CD), `40-docs`, `50-traps`.
+- `.cursor/commands/gw-*.md`: one slash command per phase, plus `/gw-plan`, `/gw-verify`, `/gw-review`.
+- `.cursor/kit/`: human prerequisites and reference code. `reference/` is read-only inspiration and must never be shipped.
+- Rules with globs only attach when matching files are in context. When a command names a rule file, open and read it explicitly.
+
+## Non-negotiables
+- Never log, print, echo, commit, or return in an error message: PATs, API keys, client secrets, tokens, Authorization headers, or base64 of any of them. Add a test whenever a new log line touches request data.
+- Never modify `node_modules` and never fork `@azure-devops/mcp`. Wrap it.
+- Default-deny: a tool is exposed only if it is on the allowlist. New upstream tools must never appear automatically.
+- The stdio child receives a minimal, explicit environment. It must never inherit the gateway's environment.
+- Unknown alias, missing key and wrong key return the identical 401 response.
+- Never write to stdout from code that runs inside an MCP stdio child. stdout is the protocol channel.
+- Copilot Studio compatibility is a hard requirement: Streamable HTTP only (no SSE), stateless, `enableJsonResponse: true`, header-based API key, simple JSON Schemas, at most 128 tools per org.
+- No Docker anywhere in this project. Delivery is a CI-built zip deployed to Azure App Service (see `30-delivery`).
+- Deployment packages are built only on a Linux x64 CI agent. Never deploy anything built on a Windows or macOS machine.
+
+## Working style
+- TypeScript strict, ESM, Node 22. No `any` without a comment saying why.
+- Check real typings in `node_modules` before using an SDK API. When unsure how something behaves, write a failing test or a small spike instead of assuming.
+- Small commits per task. After each phase run `npm run verify:local` and show the raw output.
+- If a requirement conflicts with reality, stop and explain the conflict with evidence. Never deviate silently.
+- Side effects (process spawn, network, Key Vault, clock) sit behind interfaces so tests can fake them.
+- Errors returned to MCP clients are actionable but never leak internals: no stack traces, no file paths, no upstream bodies over 300 characters.
+- The developer's project path contains spaces. Always pass argv arrays, never shell strings.

@@ -1,0 +1,46 @@
+---
+description: Packaging (zip deploy), Bicep infrastructure and Azure DevOps pipeline spec for the ADO MCP gateway. No Docker.
+globs: ["infra/**", "azure-pipelines.yml", "scripts/package.mjs", "scripts/verify/azure-preflight.mjs", "scripts/verify/package.mjs"]
+alwaysApply: false
+---
+
+# Delivery model: CI-built zip to Azure App Service (Linux, Node), Run-From-Package, staging slot + swap
+
+## Runtime
+- App Service Linux with `linuxFxVersion` `NODE|22-lts`. Check `az webapp list-runtimes --os linux`; fall back to `NODE|20-lts` only if 22 is unavailable and record the decision in `docs/ARCHITECTURE.md`.
+- Startup: `appCommandLine: node dist/index.js`. The app listens on `process.env.PORT` (default 8080).
+- App settings: `WEBSITE_RUN_FROM_PACKAGE=1`, `SCM_DO_BUILD_DURING_DEPLOYMENT=false`.
+
+## Packaging (`scripts/package.mjs`)
+- Built **only on a Linux x64 agent**. The script refuses to run on win32 or darwin unless `--dry-run` is passed, and a dry-run output is stamped "NOT DEPLOYABLE". Reason: `node_modules` contains platform-specific native binaries (the official server pulls in MSAL native extensions); a package built on the developer's Windows machine will not run on App Service.
+- Steps: `npm ci`, `npm run build`, `npm test`; then in a clean staging directory `npm ci --omit=dev`; copy `dist/`, `config/orgs.json`, `config/tool-policy.json` (REQUIRED at runtime), `config/tool-snapshot.json`, `package.json`, `package-lock.json`, `node_modules/`; zip with forward-slash paths and stable ordering; write `artifacts/gateway-<version>-<gitsha>.zip` and a `.sha256` file.
+- Excluded: `src`, `test`, `scripts`, `infra`, `docs`, `.cursor`, `legacy`, `.env*`, `*.map`, devDependencies.
+- Always followed by `verify:package` (see `20-verification`).
+
+## Deploy
+- `az webapp deploy --resource-group <rg> --name <app> [--slot staging] --src-path <zip> --type zip`.
+- Slots require the Standard plan tier or higher. Bicep parameter `enableStagingSlot` defaults to true for `S1`/`P0v3` and above and is forced false for `F1`/`B1`. When no slot exists the pipeline deploys directly, runs the verifications immediately and documents the brief risk window.
+- **First manual deployments only (fallback, not production):** Oryx remote build (`SCM_DO_BUILD_DURING_DEPLOYMENT=true`, deploy a source zip without `node_modules`). Document it as a bootstrap path in `infra/README.md` and state its downsides: build happens on the server, less reproducible.
+
+## Bicep (`infra/`)
+Parameters: `env`, `location`, `namePrefix`, `sku` (default `P0v3`; `B1` allowed for dev), `enableStagingSlot`.
+Create, at resource-group scope with modules:
+- Log Analytics workspace and workspace-based Application Insights;
+- Key Vault: RBAC authorization, soft delete, **purge protection on**, diagnostic settings to Log Analytics;
+- Linux App Service plan and Web App: system-assigned identity, `httpsOnly`, `minTlsVersion 1.2`, `ftpsState Disabled`, `alwaysOn`, `healthCheckPath /healthz`, `http20Enabled`, remote debugging off, runtime and startup command as above, staging slot with identical settings when enabled;
+- role assignment: web app identity gets `Key Vault Secrets User` on the vault (slot identity too);
+- app settings **only**: `KEY_VAULT_URI`, `NODE_ENV`, `ORG_REGISTRY_PATH`, `CHILD_TIMEOUT_MS`, `MAX_CONCURRENT_CHILDREN`, `APPLICATIONINSIGHTS_CONNECTION_STRING`, `WEBSITE_RUN_FROM_PACKAGE`, `SCM_DO_BUILD_DURING_DEPLOYMENT`. No secrets;
+- web app diagnostic settings (HTTP, console, platform) to Log Analytics;
+- alerts: 5xx rate above 2% for 5 min; 401 responses above 30 in 5 min; restarts above 3 in 10 min; health check failing;
+- outputs: default hostname, principal id, vault URI.
+The deployer's own `Key Vault Secrets Officer` role is a documented manual prerequisite, not part of Bicep. No hard-coded subscription or tenant ids. `infra/README.md` documents `az deployment group what-if` then `create`.
+
+## Optional network hardening (document, do not enable by default)
+Copilot Studio calls come from Microsoft infrastructure with changing IPs. Do not add IP restrictions without testing from a real Copilot Studio agent on a staging slot first; a wrong restriction breaks the agent silently.
+
+## `azure-pipelines.yml` (Azure DevOps, Microsoft-hosted `ubuntu-latest`)
+1. **Build and test:** `npm ci`, lint, typecheck, `npm test`, `verify:local`, `verify:drift`, `verify:secrets`, `npm audit --omit=dev --audit-level=high`.
+2. **Package:** `node scripts/package.mjs`, `verify:package`, publish the zip and `.sha256` as a pipeline artifact (retain the last 10).
+3. **Deploy to staging** (slot, or direct in dev): Azure service connection using **workload identity federation**; then `verify:azure`, `verify:security`, `verify:org` and `verify:soak` against the staging URL. Keys are read from Key Vault by the pipeline identity at run time, never stored as pipeline variables.
+4. **Approval gate** on the `production` environment, then **slot swap**, then a post-swap `/healthz` check with automatic swap-back on failure.
+Also: branch policy notes (PR required, build validation) and a Dependabot or Renovate config that bumps `@azure-devops/mcp` in its own PR so `verify:drift` runs on it.

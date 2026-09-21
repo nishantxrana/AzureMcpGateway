@@ -1,0 +1,15 @@
+---
+description: Documentation deliverables and runbooks for the ADO MCP gateway
+globs: ["docs/**"]
+alwaysApply: false
+---
+
+# Documents to produce in `docs/`
+
+- **ARCHITECTURE.md**: the diagram, request lifecycle, the decision table with reasons, failure modes, the runtime decision (Node 22 or fallback).
+- **SECURITY.md**: threat model as a table (asset, threat, control, the test that proves it): leaked client key; leaked PAT or SP secret; prompt injection via PR or ticket text (envelope, read-only tools, allowlist); tool drift after an upgrade; alias enumeration; SSRF (none: fixed host, no user-controlled URLs); denial of service (limits); log leakage; supply chain (pinned versions, audit, lockfile, Linux-built package); Key Vault compromise blast radius; cross-org data bleed. State residual risks honestly, including: a shared service identity means every user of an agent sees whatever that identity can see.
+- **RUNBOOK.md**: rotate a client key (A/B procedure); rotate a PAT; rotate a service-principal secret; add an org; remove an org; upgrade `@azure-devops/mcp` (bump, `verify:drift`, review snapshot, deploy to staging); respond to a leaked key; respond to a leaked PAT (revoke in ADO first, then rotate in Key Vault); read the logs with example KQL; **roll back** (swap slots back, or redeploy a previous pipeline artifact when there is no slot).
+- **ONBOARD-NEW-ORG.md**: end to end with `onboard-org.mjs`: ADO-side prerequisites (service account, org-scoped read-only PAT), Key Vault commands, registry pull request, deploy, `verify:org`, Copilot Studio entry.
+- **COPILOT-STUDIO.md**: exact click path and field values per org (Server name, description text, URL `https://<host>/mcp/<alias>`, API key Type=Header, Header name=`X-API-Key`), which tools to keep enabled, recommended agent instructions, how to test with a second user, and the behaviors to verify (connection scope per user versus maker).
+
+Style: short, task-oriented, copy-pasteable commands, no marketing. Every command must have been run at least once by the author.

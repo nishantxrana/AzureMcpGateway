@@ -1,0 +1,84 @@
+---
+description: Verification scripts spec and test matrix for the ADO MCP gateway
+globs: ["scripts/**", "test/**"]
+alwaysApply: false
+---
+
+# Verification scripts (cross-platform Node `.mjs`; quote all paths; exit non-zero on any failure)
+
+Every script begins with a **preflight** that prints PASS/FAIL per prerequisite with a one-line fix hint and exits before doing any work if one fails. Every script ends with a table `CHECK | RESULT | DETAIL` and a summary line. npm aliases are in brackets.
+
+1. **`scripts/verify/local.mjs`** [`verify:local`]. Starts the gateway on an ephemeral port with `EnvSecretProvider`, a two-org test registry and `ADO_MCP_BIN` pointing at `test/fixtures/fake-ado-mcp.mjs`. Runs the full test matrix below. No network, no Azure. Runs in CI. Under 60 s.
+2. **`scripts/verify/org.mjs`** [`verify:org -- --base <url> --alias <a> --key <k>`]. Live smoke through the gateway against real ADO:
+   - list tools (expect the allowlisted set for that alias's domains);
+   - `core_list_projects` must succeed with count > 0 (else the identity has no project access);
+   - take the first project and per enabled domain run one cheap read: `repo_repository` list, `pipelines_definition` list, `pipelines_build` list with `top: 1`, `wiki` list, `wit_query` (or `wit_work_item` when an id is available);
+   - map any 401/403/"Failed request: (401)" to a **named missing permission**: repositories=Code (Read), pipelines=Build (Read), wiki=Wiki (Read), work-items=Work Items (Read), core=Project and Team (Read);
+   - print raw versus shaped response sizes and the reduction;
+   - print a domain-by-domain PASS/FAIL matrix. Empty results are PASS with a note. Only auth or transport errors FAIL;
+   - always print a reminder that the PAT must be organization-scoped (global PATs stop working 2026-12-01).
+3. **`scripts/verify/security.mjs`** [`verify:security -- --base <url> --alias <a> --key <k>`]. Black-box, local or deployed:
+   - deployed only: plain HTTP refused or redirected; TLS 1.2+ only (a TLS 1.1 handshake must fail);
+   - no key, wrong key, unknown alias, right key on the wrong alias: all return **byte-identical 401 bodies**;
+   - `GET /mcp/<alias>` returns 405; unknown path 404; body over 256 KB returns 413;
+   - `tools/call` for `pipelines_write`, `repo_create_branch`, `wiki_upsert_page` is rejected and none appears in `tools/list`;
+   - an allowlisted tool called with `action: "create"` is rejected;
+   - the 121st request within a minute returns 429 (use a low-limit test alias locally);
+   - errors contain no stack traces or file paths; helmet headers present; no `X-Powered-By`;
+   - `/healthz` body is exactly `{"status":"ok"}`;
+   - rotation: with keys A and B valid, both work; print the manual steps to remove A, then re-run with `--expect-revoked <A>`.
+4. **`scripts/verify/azure-preflight.mjs`** [`verify:azure -- --rg <rg> --app <name> --kv <vault> [--slot staging]`]. Uses `az` JSON. Fails if any is false:
+   - web app has a system-assigned identity, and that identity has `Key Vault Secrets User` on the vault;
+   - vault uses RBAC, soft delete on, **purge protection on**;
+   - `httpsOnly` true, `minTlsVersion` 1.2, `ftpsState` Disabled, `alwaysOn` true, `healthCheckPath` set, remote debugging off;
+   - runtime is Node (`NODE|22-lts`, or the documented fallback), `appCommandLine` is `node dist/index.js`, `WEBSITE_RUN_FROM_PACKAGE=1`, `SCM_DO_BUILD_DURING_DEPLOYMENT` is `false`;
+   - **no app setting looks like a secret**: only allowlisted setting names are present (`KEY_VAULT_URI`, `NODE_ENV`, `ORG_REGISTRY_PATH`, `CHILD_TIMEOUT_MS`, `MAX_CONCURRENT_CHILDREN`, `APPLICATIONINSIGHTS_CONNECTION_STRING`, `WEBSITE_RUN_FROM_PACKAGE`, `SCM_DO_BUILD_DURING_DEPLOYMENT`, plus platform-managed ones), and no value is a long high-entropy string;
+   - diagnostic settings send logs to Log Analytics;
+   - a staging slot exists when the plan SKU supports slots (Standard or higher), otherwise the script prints "no slot (SKU does not support it)" as a WARN.
+5. **`scripts/verify/secrets-scan.mjs`** [`verify:secrets`]. Runs `gitleaks detect` if installed, else a built-in regex scan of the working tree and git history for PAT-like tokens (52-character base32-ish), `AZURE_CLIENT_SECRET=`, private keys and committed `.env` files. Asserts `.env*` is git-ignored.
+6. **`scripts/verify/tool-drift.mjs`** [`verify:drift [-- --update]`]. Spawns the pinned official server for a dummy org with the 5 default domains, dumps every tool name plus each tool's `action` enum, diffs against `config/tool-snapshot.json`. Fails on any added or removed tool or action. Fails if any **allowlisted** tool has an action matching the mutation regex. `--update` rewrites the snapshot for human review. Runs in CI on every dependency change.
+7. **`scripts/verify/soak.mjs`** [`verify:soak -- --base <url> --alias <a> --key <k> --seconds 60 --concurrency 12`]. Hammers `tools/list` and one cheap `tools/call`. Asserts no 5xx other than deliberate "busy" tool errors, prints p95 latency, checks the concurrency cap, and (local only) that the child process count returns to baseline.
+8. **`scripts/verify/prereq.mjs`** [`verify:prereq`]. Shared preflight: Node >= 22, `az` installed and logged in (when needed), `config/orgs.json` valid, required env vars present, and (when a vault is given) a secret exists for every alias (names only; values are never read into logs).
+9. **`scripts/verify/package.mjs`** [`verify:package -- --zip <path>`]. Validates the deployment zip:
+   - zip and `.sha256` match; required entries present: `dist/index.js`, `package.json`, `package-lock.json`, `config/orgs.json`, `config/tool-policy.json`, `config/tool-snapshot.json`, `node_modules/@azure-devops/mcp/dist/index.js`;
+   - forbidden entries absent: `.env*`, `.git*`, `src/`, `test/`, `scripts/`, `infra/`, `.cursor/`, `docs/`, `*.map`, `legacy/`;
+   - installed `@azure-devops/mcp` version equals the pinned version;
+   - **every `*.node` native binary starts with the ELF magic bytes (`7F 45 4C 46`)**, proving the package was built on Linux; fail on any PE (`MZ`) or Mach-O binary;
+   - size budget on the **zip**: WARN above 100 MB, FAIL above 250 MB (reference: production dependencies measure about 46 MB zipped, 198 MB unpacked);
+   - **smoke test**: unzip to a temp dir, start `node dist/index.js` with `EnvSecretProvider`, the fake ADO bin and a test registry, then hit `/healthz` and run one `tools/list`.
+
+# Test matrix (vitest; all pass in `verify:local` and CI)
+
+**Auth and routing**
+- valid key gives 200 on `initialize`, `tools/list`, `tools/call`
+- missing, wrong, empty, whitespace key; unknown alias; key of org A on org B: identical 401
+- rotation: key A only, key B only, both, neither
+- 405 for GET/DELETE; 404 other paths; 413 oversized body; malformed JSON gives a JSON-RPC parse error without a stack trace
+- constant-time comparison (digests of equal length via `timingSafeEqual`)
+
+**Policy**
+- `tools/list` equals exactly the allowlist intersected with the alias's domains
+- every excluded tool rejected on call; `extraAllow`/`extraDeny` honored; unknown names rejected at registry load
+- explicit action allowlist: `wit_backlog.reorder`, unknown actions and a missing action are rejected; mutation regex still rejects `create`, `update`, `run_pipeline`, `vote`; allows `list`, `get`
+- a new tool added by a fake upstream is **not** exposed (default-deny)
+
+**Isolation**
+- child env contains only allowed variables (fake child prints `Object.keys(process.env)`); never another org's secret, `KEY_VAULT_URI`, `MCP_*`, or gateway env
+- two concurrent calls for two orgs use the right credential each (fake child echoes a hash of its credential)
+- credential strategies build exact env and args (table-driven for `pat` and `entra-sp`)
+
+**Shaping**
+- fixture reduction >= 60%, envelope intact, JSON valid, required fields preserved
+- non-envelope text and non-JSON payload pass through
+- truncation note as a second block; `isError` preserved; fuzz (200 random payloads) never throws or grows output
+
+**Resilience**
+- child crash, hang (timeout kill), garbage on stdout, exit before responding, client disconnect mid-call: clean tool error or abort, child reaped
+- concurrency cap and queue timeout; 429 carries `Retry-After`
+- SIGTERM drains in-flight requests
+
+**Secrets and logging**
+- inject sentinel secrets into env, registry, fake Key Vault and requests; capture all logs and all HTTP error bodies; assert no sentinel appears anywhere
+
+**Registry and secrets**
+- every validation rule; missing secret isolates one alias; Key Vault fake error mapping; TTL and negative caching

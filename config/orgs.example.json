@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "orgs": [
+    {
+      "alias": "coolops",
+      "displayName": "Cool Ops",
+      "adoOrg": "coolops",
+      "domains": ["core", "repositories", "pipelines", "work-items", "wiki"],
+      "auth": { "type": "pat", "secret": "ado-coolops-pat" },
+      "clientKeys": ["mcp-coolops-key-a", "mcp-coolops-key-b"],
+      "toolPolicy": { "extraAllow": [], "extraDeny": [] },
+      "limits": { "ratePerMinute": 120, "maxResponseChars": 60000 },
+      "instructions": "Use small 'top' values. Discover project names with core_list_projects first."
+    },
+    {
+      "alias": "acme",
+      "displayName": "Acme DevOps",
+      "adoOrg": "acme-devops",
+      "domains": ["core", "repositories"],
+      "auth": {
+        "type": "entra-sp",
+        "tenantId": "00000000-0000-0000-0000-000000000000",
+        "clientId": "00000000-0000-0000-0000-000000000000",
+        "secret": "ado-acme-sp-secret"
+      },
+      "clientKeys": ["mcp-acme-key-a"],
+      "toolPolicy": { "extraAllow": [], "extraDeny": [] },
+      "limits": { "ratePerMinute": 60, "maxResponseChars": 60000 }
+    }
+  ]
+}

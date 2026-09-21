@@ -1,0 +1,146 @@
+---
+description: Verified facts, target architecture, design decisions, registry schema and tool allowlist for the ADO MCP gateway
+globs: ["src/**", "config/**", "test/**"]
+alwaysApply: false
+---
+
+# Mission
+Turn the single-org wrapper (`start.mjs`, mcp-proxy, one PAT, one key) into a production-grade, multi-organization **Azure DevOps MCP Gateway** for Microsoft Copilot Studio.
+- One deployment serves many ADO orgs. Adding an org is config plus secrets, never new infrastructure.
+- Least privilege by default: read-only tools, default-deny allowlist, per-org credentials, per-org client keys.
+- Secrets only in Azure Key Vault via managed identity. None in app settings, packages, or git.
+- Agent-friendly output: noisy ADO JSON slimmed and size-capped, UNTRUSTED envelope preserved.
+- Operable: audit logs, health endpoints, limits, timeouts, Bicep, CI/CD with a staging slot, runbooks.
+- Verifiable: every claim is backed by a script or test.
+Non-goals: UI, write tools, per-user OAuth on-behalf-of (only design the seams), database, session state, containers.
+
+# Verified facts (established by testing; do not re-derive or contradict)
+
+## Official server `@azure-devops/mcp` (pin exactly `2.10.0`)
+- Stdio MCP server. CLI: `node <pkg>/dist/index.js <org> --authentication <interactive|azcli|env|envvar|pat> --domains <name...>`.
+- Domains: `core`, `work`, `work-items`, `search`, `test-plans`, `repositories`, `wiki`, `pipelines`, `advanced-security`.
+- `pat` mode reads env `PERSONAL_ACCESS_TOKEN` = **base64("<any-nonempty-email>:<PAT>")** and sends Basic auth. It refuses to send a PAT to any host except `dev.azure.com`, `vssps.dev.azure.com`, `almsearch.dev.azure.com`, `*.visualstudio.com`.
+- `envvar` mode reads an Entra access token from `ADO_MCP_AUTH_TOKEN` (resource `499b84ac-1321-427f-aa17-267ca6975798/.default`).
+- `env` mode uses `DefaultAzureCredential`: service principal via `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`; managed identity also works when its endpoint env vars exist.
+- At startup it tries an org-tenant lookup. If the network blocks it, it logs to stderr and continues. Listing tools works without network.
+- With domains `core repositories pipelines work-items wiki` it exposes 27 tools: `core_list_project_teams, core_list_projects, core_get_identity_ids, pipelines_build, pipelines_build_log, pipelines_definition, pipelines_run, pipelines_artifact, pipelines_write, repo_repository, repo_pull_request, repo_pull_request_thread, repo_branch, repo_file, repo_search_commits, repo_pull_request_write, repo_pull_request_thread_write, repo_create_branch, wit_work_item, wit_query, wit_backlog, wit_work_item_attachment, wit_work_item_write, wit_work_item_comment_write, wit_work_item_link_write, wiki, wiki_upsert_page`.
+- Most read tools take an `action` argument (`repo_repository` with `action: "list"`, `wiki` with `action: "list_wikis"`).
+- Every result is text wrapped in an envelope: first line `<<ID>> [UNTRUSTED AZURE DEVOPS <AREA> CONTENT ...] <<ID>>`, then the payload, last line `<</ID>>`. Errors use the same envelope with `isError: true`. **Preserve it.**
+- Output is very verbose. `.cursor/kit/reference/fixtures/pipelines_build.list.sample.txt`: 3 builds is about 13,000 characters, mostly `_links`, avatars, repeated `project` blocks, identity descriptors, empty arrays.
+
+## Microsoft platform
+- Service principals and managed identities can only be added to an ADO org from **the tenant the org is connected to** (documented federated-credential workaround exists). Service principals need an Entra-backed org.
+- **Global PATs** (for "All accessible organizations") are decommissioned on **2026-12-01**. Org-scoped PATs continue. Multi-org means one org-scoped PAT (or service identity) per org.
+- ADO uses its own permission model. What a PAT or service principal can see is what its identity was granted inside ADO. This is the real least-privilege control.
+- Copilot Studio MCP: **Streamable HTTP only** (SSE dropped after Aug 2025). Auth: None, API key (Header or Query), OAuth 2.0. Max 128 tools per agent. Tools can be toggled per agent.
+- Microsoft's Learn material describes Copilot Studio API-key connections as user-scoped. Verify end-user behavior with a second test account.
+
+## Proven by the spike (`.cursor/kit/reference/`)
+- SDK low-level `Server` + `StreamableHTTPServerTransport` (stateless, `enableJsonResponse: true`, new server and transport per request) can front an SDK `Client` with `StdioClientTransport` spawning the official server. `tools/list` and `tools/call` bridge correctly.
+- `POST /mcp/:alias` with per-alias key and domains works; a key for org A fails on org B; a default-deny allowlist hides write tools and rejects calls to them.
+- Spawning the child per call costs about 0.45 s. `tools/list` is cached.
+- mcp-proxy cannot vary child args or env per request, hence the custom gateway.
+
+## Environment
+- Developer machine: Windows, Git Bash. **Project path contains spaces** (`The Archivist`).
+- Existing files: `start.mjs`, `scripts/test-client.mjs`, `package.json`. Move `start.mjs` to `legacy/` and delete it after Phase 2 parity.
+- The org name is `coolops` (URLs show `dev.azure.com/coolops`); an earlier message spelled it `coolosp`. Never hard-code either. Names come from the registry.
+
+# Target architecture
+
+```
+Copilot Studio agent (one MCP server entry per org)
+   POST https://<gateway>/mcp/<alias>      header: X-API-Key: <that alias's key>
+        |
++----------------------------------------------------------------------+
+| Gateway  (Node 22, TypeScript strict, Express 5, stateless HTTP)     |
+|  1. authenticate: alias + key (constant time, uniform 401)            |
+|  2. rate limit, body-size limit                                       |
+|  3. tools/list  -> cached per alias, filtered by default-deny policy  |
+|  4. tools/call  -> policy check (tool + action) -> spawn child        |
+|        child env is minimal + per-org credentials, hard timeout       |
+|  5. shape response: strip noise, cap size, keep UNTRUSTED envelope    |
+|  6. audit log (no secrets)                                            |
++----------------------------------------------------------------------+
+        | stdio                                   ^ secrets (managed identity)
++--------------------------------------+    +---------------------------+
+| @azure-devops/mcp <org>              |    | Azure Key Vault (RBAC)    |
+|   --authentication pat | env         |    |  ado-<alias>-pat          |
++--------------------------------------+    |  ado-<alias>-sp-secret    |
+        | HTTPS                             |  mcp-<alias>-key-a / -b   |
+   dev.azure.com/<org>                      +---------------------------+
+
+config/orgs.json  (non-secret registry, in git, PR-reviewed)
+Delivery: CI-built zip -> Azure App Service (Linux, Node) with Run-From-Package, staging slot + swap
+```
+
+# Design decisions (keep unless you can prove one wrong)
+
+| # | Decision | Reason |
+|---|---|---|
+| 1 | One deployment, route per org: `/mcp/:alias` | Copilot Studio stores URL + key per MCP entry. Isolation by key, zero infra per org. |
+| 2 | Registry in git, secrets in Key Vault referenced by **name** | Reviewable org changes. Secrets never in config. |
+| 3 | Secrets fetched at runtime with `DefaultAzureCredential`, cached 5 min, not in app settings | Onboarding needs no restart. Rotation is picked up automatically. |
+| 4 | Custom bridge (SDK `Server` + `StdioClientTransport`), not mcp-proxy | Per-request per-org args and env. |
+| 5 | Spawn the child **per `tools/call`** | Fresh credentials, no token-expiry handling, crash isolation. Pooling is optional later. |
+| 6 | **Default-deny allowlist** + action deny regex + snapshot drift test | An upstream upgrade must never expose a write tool silently. |
+| 7 | Response shaping in the gateway | Fewer tokens, less data exposure. |
+| 8 | Client auth behind a `ClientAuthenticator` interface; API key now | Entra JWT can slot in later. |
+| 9 | ADO identity behind `AdoCredentialStrategy`: `pat` and `entra-sp` now | Microsoft is moving away from PATs. |
+| 10 | CI-built zip, App Service Run-From-Package, staging slot + swap (no Docker) | Simple to operate, still an immutable tested artifact. Requires Linux x64 build agent. |
+| 11 | Uniform 401 for unknown alias, missing key, wrong key | Prevents alias enumeration. (The spike returns 404 for unknown alias: fix this.) |
+
+## Default tool allowlist (exact names)
+`core_list_projects, core_list_project_teams, repo_repository, repo_pull_request, repo_pull_request_thread, repo_branch, repo_file, repo_search_commits, pipelines_build, pipelines_build_log, pipelines_definition, pipelines_run, wit_work_item, wit_query, wit_backlog, wiki`
+
+Excluded by default: every `*_write`, `repo_create_branch`, `wiki_upsert_page`, `wit_work_item_attachment`, `pipelines_artifact`, `core_get_identity_ids`. Per-org `toolPolicy.extraAllow` and `extraDeny` are validated against the tool snapshot.
+
+Second layer: reject any `tools/call` whose `arguments.action` matches
+`/^(create|update|delete|remove|add|set|run|queue|retry|cancel|approve|vote|complete|abandon|reply|resolve|link|unlink|upsert|write|assign|merge|publish|trigger)/i`
+even on an allowlisted tool.
+
+**Explicit action allowlist (authoritative).** `config/tool-policy.json` lists, per tool, the ONLY `action` values that may be called. Anything else, including a missing action or a new upstream action, is rejected by `evaluateToolCall` in `src/ado/toolPolicy.ts`, and the `action` enum shown to the model is narrowed to match. The regex above is only a second layer. This exists because `wit_backlog.reorder` is a write that a verb regex does not catch. `extraAllow` can never enable a tool whose name looks like a write tool (`*_write`, `*create*`, `*upsert*`, ...). `verify:drift` fails on any action of an allowlisted tool that is in neither `allowedActions` nor `reviewedBlockedActions`. Do not go back to a regex-only design.
+
+## Registry schema (`config/orgs.json`, validate with zod)
+```json
+{
+  "version": 1,
+  "orgs": [
+    {
+      "alias": "coolops",
+      "displayName": "Cool Ops",
+      "adoOrg": "coolops",
+      "domains": ["core", "repositories", "pipelines", "work-items", "wiki"],
+      "auth": { "type": "pat", "secret": "ado-coolops-pat" },
+      "clientKeys": ["mcp-coolops-key-a", "mcp-coolops-key-b"],
+      "toolPolicy": { "extraAllow": [], "extraDeny": [] },
+      "limits": { "ratePerMinute": 120, "maxResponseChars": 60000 },
+      "instructions": "Use small 'top' values. Discover project names with core_list_projects first."
+    },
+    {
+      "alias": "acme",
+      "adoOrg": "acme-devops",
+      "domains": ["core", "repositories"],
+      "auth": { "type": "entra-sp", "tenantId": "00000000-0000-0000-0000-000000000000", "clientId": "00000000-0000-0000-0000-000000000000", "secret": "ado-acme-sp-secret" },
+      "clientKeys": ["mcp-acme-key-a"]
+    }
+  ]
+}
+```
+Rules: `alias` matches `^[a-z0-9][a-z0-9-]{1,30}$`, unique. `adoOrg` matches `^[A-Za-z0-9][A-Za-z0-9-]{0,49}$`. `domains` is a non-empty subset of known domains. `clientKeys` has 1 or 2 secret names (2 = zero-downtime rotation). Secret names match `^[a-zA-Z0-9-]{1,127}$`. Unknown fields rejected. Also ship `config/orgs.example.json` and an exported JSON Schema.
+
+Secret names: `ado-<alias>-pat`, `ado-<alias>-sp-secret`, `mcp-<alias>-key-a`, `mcp-<alias>-key-b`.
+
+# Repository layout
+```
+src/  index.ts  config/{env,registry}.ts  secrets/{provider,keyvault,env}.ts  auth/clientAuth.ts
+      ado/{credentials,child,toolPolicy,shape}.ts  mcp/gateway.ts  http/app.ts  observability/logger.ts
+test/ unit/*.test.ts  integration/*.test.ts  fixtures/{fake-ado-mcp.mjs,pipelines_build.list.sample.txt}
+scripts/ verify/*.mjs  onboard-org.mjs  package.mjs
+config/  orgs.json  orgs.example.json  orgs.schema.json  tool-snapshot.json
+infra/   main.bicep  modules/*.bicep  main.parameters.example.json  README.md
+docs/    ARCHITECTURE.md SECURITY.md RUNBOOK.md ONBOARD-NEW-ORG.md COPILOT-STUDIO.md
+legacy/  start.mjs   (deleted after Phase 2 parity)
+azure-pipelines.yml  .env.example
+```
+Libraries (exact versions in the lockfile, `npm ci` everywhere): `@modelcontextprotocol/sdk`, `@azure-devops/mcp@2.10.0`, `express@5`, `zod`, `pino`, `express-rate-limit`, `helmet`, `@azure/keyvault-secrets`, `@azure/identity`; dev: `typescript`, `tsx`, `vitest`, `eslint`, `prettier`. Justify every addition.

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "description": "Bump official ADO MCP server alone so verify:drift runs in isolation",
+      "matchPackageNames": ["@azure-devops/mcp"],
+      "groupName": "azure-devops-mcp",
+      "schedule": ["before 6am on monday"]
+    }
+  ]
+}

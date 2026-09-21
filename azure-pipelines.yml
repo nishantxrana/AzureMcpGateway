@@ -1,0 +1,275 @@
+# ADO MCP Gateway - build, package, deploy (zip + Run-From-Package), verify, swap.
+#
+# One-time setup (see PREREQUISITES.md section H):
+#   1. Azure Resource Manager service connection using WORKLOAD IDENTITY FEDERATION,
+#      scoped to the resource group. Put its name in `serviceConnection` below.
+#   2. That connection's identity needs: Contributor on the web app, and
+#      "Key Vault Secrets User" on the vault (verification reads keys at run time,
+#      so no key is ever stored as a pipeline variable).
+#   3. Create an Environment named `production` and add an APPROVAL check to it.
+#      (If useStagingSlot is true, also create an Environment named `staging`.)
+#   4. Branch policy on main: PR required + this pipeline as build validation.
+#
+# Standard (S1) or Premium (P0v3) plans support slots. B1 does not: set
+# useStagingSlot=false and the pipeline deploys straight to production behind the
+# approval gate, with the verification run immediately afterwards.
+
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: [main]
+
+parameters:
+  - name: serviceConnection
+    type: string
+    default: sc-adomcp # REPLACE: name of your ARM service connection
+  - name: resourceGroup
+    type: string
+    default: rg-adomcp-dev # REPLACE
+  - name: webAppName
+    type: string
+    default: app-adomcp-dev # REPLACE: `webAppName` output of infra/main.bicep
+  - name: keyVaultName
+    type: string
+    default: REPLACE-vault-name # REPLACE: `keyVaultName` output of infra/main.bicep
+  - name: alias
+    type: string
+    default: coolops # alias used for verify:org / verify:security
+  - name: useStagingSlot
+    type: boolean
+    default: true
+
+variables:
+  nodeVersion: 22.x
+  zipDir: $(Pipeline.Workspace)/package
+
+stages:
+  # ------------------------------------------------------------------ build
+  - stage: Build
+    displayName: Build, test, package (Linux)
+    jobs:
+      - job: build
+        pool:
+          vmImage: ubuntu-latest # MUST be Linux: the zip contains native Linux binaries
+        steps:
+          - task: NodeTool@0
+            displayName: Use Node $(nodeVersion)
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: npm ci
+
+          # lint + build + typecheck + unit and integration tests, offline (fake ADO child)
+          - script: npm run verify:local
+            displayName: verify:local
+
+          # fails when Microsoft's tool/action list changed or an action is unreviewed
+          - script: npm run verify:drift
+            displayName: verify:drift
+
+          - script: npm run verify:secrets
+            displayName: verify:secrets
+
+          - script: npm audit --omit=dev --audit-level=high
+            displayName: npm audit (production dependencies)
+
+          # npm ci -> build -> test -> production node_modules -> zip + sha256
+          - script: node scripts/package.mjs
+            displayName: Package (Linux only)
+
+          - script: |
+              set -e
+              ZIP=$(ls artifacts/gateway-*.zip | head -n 1)
+              node scripts/verify/package.mjs --zip "$ZIP"
+            displayName: verify:package (entries, pin, ELF natives, smoke start)
+
+          - task: CopyFiles@2
+            displayName: Stage package
+            inputs:
+              SourceFolder: artifacts
+              Contents: |
+                gateway-*.zip
+                gateway-*.zip.sha256
+              TargetFolder: $(Build.ArtifactStagingDirectory)
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish package artifact
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)
+              artifact: package
+
+  # -------------------------------------------- deploy: slot -> verify -> swap
+  - ${{ if eq(parameters.useStagingSlot, true) }}:
+      - stage: Staging
+        displayName: Deploy to staging slot and verify
+        dependsOn: Build
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        jobs:
+          - deployment: staging
+            environment: staging
+            pool:
+              vmImage: ubuntu-latest
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - download: current
+                      artifact: package
+                    - task: NodeTool@0
+                      inputs:
+                        versionSpec: $(nodeVersion)
+
+                    - task: AzureCLI@2
+                      displayName: Deploy zip to staging slot
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: bash
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          set -euo pipefail
+                          ZIP=$(ls "$(Pipeline.Workspace)"/package/gateway-*.zip | head -n 1)
+                          az webapp deploy \
+                            --resource-group "${{ parameters.resourceGroup }}" \
+                            --name "${{ parameters.webAppName }}" \
+                            --slot staging \
+                            --src-path "$ZIP" --type zip
+
+                    - task: AzureCLI@2
+                      displayName: Wait for staging, then verify
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        workingDirectory: $(Build.SourcesDirectory)
+                        scriptType: bash
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          set -euo pipefail
+                          BASE="https://${{ parameters.webAppName }}-staging.azurewebsites.net"
+                          ALIAS="${{ parameters.alias }}"
+
+                          # Give the new package up to ~4 minutes to start.
+                          for i in $(seq 1 48); do
+                            if curl -fsS -m 5 "$BASE/healthz" | grep -q '"status":"ok"'; then ok=1; break; fi
+                            sleep 5
+                          done
+                          [ "${ok:-0}" = "1" ] || { echo "Staging never became healthy"; exit 1; }
+
+                          # Read the client key from Key Vault at run time; never a pipeline variable.
+                          KEY=$(az keyvault secret show --vault-name "${{ parameters.keyVaultName }}" \
+                                  --name "mcp-${ALIAS}-key-a" --query value -o tsv)
+                          echo "##vso[task.setsecret]$KEY"
+
+                          node scripts/verify/azure-preflight.mjs \
+                            --rg "${{ parameters.resourceGroup }}" \
+                            --app "${{ parameters.webAppName }}" \
+                            --kv "${{ parameters.keyVaultName }}" --slot staging
+                          node scripts/verify/security.mjs --base "$BASE" --alias "$ALIAS" --key "$KEY" --test-limits
+                          node scripts/verify/org.mjs      --base "$BASE" --alias "$ALIAS" --key "$KEY"
+                          node scripts/verify/soak.mjs     --base "$BASE" --alias "$ALIAS" --key "$KEY" --seconds 30 --concurrency 2
+
+      - stage: Production
+        displayName: Approve, swap, post-swap check
+        dependsOn: Staging
+        condition: succeeded()
+        jobs:
+          - deployment: production
+            environment: production # add an APPROVAL check to this environment
+            pool:
+              vmImage: ubuntu-latest
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - task: AzureCLI@2
+                      displayName: Swap staging -> production, check, swap back on failure
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: bash
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          set -uo pipefail
+                          RG="${{ parameters.resourceGroup }}"
+                          APP="${{ parameters.webAppName }}"
+                          PROD="https://${APP}.azurewebsites.net"
+
+                          az webapp deployment slot swap -g "$RG" -n "$APP" \
+                            --slot staging --target-slot production || { echo "swap failed"; exit 1; }
+
+                          healthy=0
+                          for i in $(seq 1 24); do
+                            if curl -fsS -m 5 "$PROD/healthz" | grep -q '"status":"ok"'; then healthy=1; break; fi
+                            sleep 5
+                          done
+
+                          if [ "$healthy" != "1" ]; then
+                            echo "Post-swap health check FAILED: swapping back"
+                            az webapp deployment slot swap -g "$RG" -n "$APP" \
+                              --slot staging --target-slot production
+                            exit 1
+                          fi
+                          echo "Production healthy after swap"
+
+  # ------------------------------------------------- deploy: no slot (B1/dev)
+  - ${{ else }}:
+      - stage: DeployDirect
+        displayName: Deploy directly to production (no staging slot)
+        dependsOn: Build
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        jobs:
+          - deployment: production
+            environment: production # add an APPROVAL check to this environment
+            pool:
+              vmImage: ubuntu-latest
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - download: current
+                      artifact: package
+                    - task: NodeTool@0
+                      inputs:
+                        versionSpec: $(nodeVersion)
+
+                    - task: AzureCLI@2
+                      displayName: "Deploy zip (brief risk window - no slot to swap back to)"
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: bash
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          set -euo pipefail
+                          ZIP=$(ls "$(Pipeline.Workspace)"/package/gateway-*.zip | head -n 1)
+                          az webapp deploy \
+                            --resource-group "${{ parameters.resourceGroup }}" \
+                            --name "${{ parameters.webAppName }}" \
+                            --src-path "$ZIP" --type zip
+
+                    - task: AzureCLI@2
+                      displayName: Wait for health, then verify
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        workingDirectory: $(Build.SourcesDirectory)
+                        scriptType: bash
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          set -euo pipefail
+                          BASE="https://${{ parameters.webAppName }}.azurewebsites.net"
+                          ALIAS="${{ parameters.alias }}"
+                          for i in $(seq 1 48); do
+                            if curl -fsS -m 5 "$BASE/healthz" | grep -q '"status":"ok"'; then ok=1; break; fi
+                            sleep 5
+                          done
+                          [ "${ok:-0}" = "1" ] || { echo "App never became healthy"; exit 1; }
+                          KEY=$(az keyvault secret show --vault-name "${{ parameters.keyVaultName }}" \
+                                  --name "mcp-${ALIAS}-key-a" --query value -o tsv)
+                          echo "##vso[task.setsecret]$KEY"
+                          node scripts/verify/azure-preflight.mjs \
+                            --rg "${{ parameters.resourceGroup }}" \
+                            --app "${{ parameters.webAppName }}" \
+                            --kv "${{ parameters.keyVaultName }}"
+                          node scripts/verify/security.mjs --base "$BASE" --alias "$ALIAS" --key "$KEY" --test-limits
+                          node scripts/verify/org.mjs      --base "$BASE" --alias "$ALIAS" --key "$KEY"

@@ -1,0 +1,36 @@
+---
+description: Known traps for the ADO MCP gateway - Windows paths, stdio child, stateless HTTP, ADO auth quirks, zip deploy pitfalls. Read before writing spawn, HTTP, auth or deploy code.
+alwaysApply: false
+---
+
+# Traps (learned by testing)
+
+**Local and process handling**
+- Windows Git Bash and a path with spaces: pass argv arrays to `spawn`, never command strings. Use `path.join`, `fileURLToPath`, `process.execPath`. Never `npx`, never a shell.
+- The child's stdout is the MCP protocol channel. Anything else written there corrupts the session. Capture stderr separately and only log it at debug level, truncated.
+- `StdioClientTransport` needs an explicit `env`. Pass `PATH` and only what the child needs.
+- Do not let `pkill -f <pattern>` style commands match your own shell when scripting process cleanup; track child PIDs instead.
+
+**HTTP and MCP**
+- Stateless: new `Server` and `StreamableHTTPServerTransport` per request, `enableJsonResponse: true`, close both on `res.on("close")`. No session ids.
+- Express 5 changed path matching. Test `/mcp/:alias` with encoded and odd characters and reject aliases not matching the alias regex before any lookup.
+- `tools/list` must be fast for Copilot Studio. Serve it from cache; never spawn a child on the request path after warm-up.
+- Copilot Studio caps agents at 128 tools and works best with few, clearly described tools. No SSE, no sessions, no CORS.
+- Never log full URLs with query strings, `Authorization` or `X-API-Key`.
+
+**ADO and credentials**
+- The official `pat` value is `base64("email:pat")`, not the raw PAT. A raw PAT gives confusing 401s.
+- ADO answers some bad-credential cases with HTTP 203 and an HTML sign-in page instead of 401. Map unrecognized upstream auth failures to "upstream authentication failed for org <alias>" without leaking bodies.
+- Global PATs die on 2026-12-01. Organization-scoped PATs only.
+- Service principals and managed identities only work from the tenant the org is connected to.
+
+**Zip deployment**
+- Build the package on Linux x64 only. A `node_modules` built on Windows contains the wrong native binaries and the app will fail to start on App Service with an unhelpful error.
+- Do not zip devDependencies, source, tests, `.cursor`, or `.env` files. `verify:package` enforces this.
+- With Run-From-Package the app directory is read-only. Never write files under the app directory at runtime; use `os.tmpdir()`.
+- App Service (built-in Node image) provides `PORT`; listen on it. `WEBSITES_PORT` is only for custom containers.
+- Slots need Standard tier or higher; `B1` has none. Do not assume a slot exists.
+- After changing app settings the app restarts. After changing Key Vault secrets nothing restarts; the 5-minute cache picks them up.
+- Windows: `npm`, `az`, `gitleaks` are `.cmd` shims. Node 22 refuses to spawn them without a shell, which shows up as `status === null` ("exit null"). Always launch external commands through `runCommand` in `scripts/verify/_lib.mjs`, never bare `spawnSync("npm", ...)`. `test/unit/runCommand.test.ts` pins this.
+- A missing spare client key (`key-b`) must NOT mark an alias unhealthy. An alias is unhealthy only when no client key can be loaded. Keys are resolved per request (cached by the SecretProvider), so rotation needs no restart.
+- Anything the runtime `require`s (for example `config/tool-policy.json`) must be listed in `scripts/package.mjs` and in `verify:package`'s required entries, or the deployed app crashes on start. `verify:package` runs a real smoke start for this reason.

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "orgs": [
+    {
+      "alias": "coolops",
+      "displayName": "Cool Ops",
+      "adoOrg": "coolops",
+      "domains": ["core", "repositories", "pipelines", "work-items", "wiki"],
+      "auth": { "type": "pat", "secret": "ado-coolops-pat" },
+      "clientKeys": ["mcp-coolops-key-a", "mcp-coolops-key-b"],
+      "toolPolicy": { "extraAllow": [], "extraDeny": [] },
+      "limits": { "ratePerMinute": 120, "maxResponseChars": 60000 },
+      "instructions": "Use small 'top' values. Discover project names with core_list_projects first."
+    }
+  ]
+}
