@@ -3,6 +3,7 @@
 Review `git diff` (and untracked files) against `.cursor/rules/00-standing-rules.mdc` and `50-traps.mdc`. Do not modify code; report.
 
 Check specifically:
+
 - any log, error message, test snapshot or fixture that could contain a secret, token, key or Authorization header
 - any path where the child process could inherit the gateway env
 - any place a non-allowlisted tool or a mutation-like action could be reached

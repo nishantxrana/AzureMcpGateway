@@ -12,7 +12,15 @@
     "repo_pull_request_thread": ["list", "list_comments"],
     "repo_branch": ["get", "list", "list_mine"],
     "repo_file": ["get_content", "list_directory"],
-    "wit_work_item": ["get", "get_batch", "list_comments", "my", "list_revisions", "list_for_iteration", "get_type"],
+    "wit_work_item": [
+      "get",
+      "get_batch",
+      "list_comments",
+      "my",
+      "list_revisions",
+      "list_for_iteration",
+      "get_type"
+    ],
     "wit_query": ["get", "get_results", "wiql"],
     "wit_backlog": ["list", "list_work_items"],
     "wiki": ["list_wikis", "get_wiki", "list_pages", "get_page", "get_page_content"]

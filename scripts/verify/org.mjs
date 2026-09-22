@@ -2,26 +2,16 @@
 /**
  * verify:org — live smoke through gateway against real ADO.
  */
-import {
-  nodeMajorOk,
-  parseArgs,
-  printHelp,
-  preflight,
-  resultTable,
-} from "./_lib.mjs";
+import { nodeMajorOk, parseArgs, printHelp, preflight, resultTable } from "./_lib.mjs";
 
 const args = parseArgs();
 if (args.help || !args.base || !args.alias || !args.key) {
-  printHelp(
-    "verify:org",
-    "node scripts/verify/org.mjs -- --base <url> --alias <a> --key <k>",
-    {
-      base: "Gateway base URL (e.g. http://127.0.0.1:8080)",
-      alias: "Org alias",
-      key: "Client API key for that alias",
-      help: "Show help",
-    },
-  );
+  printHelp("verify:org", "node scripts/verify/org.mjs -- --base <url> --alias <a> --key <k>", {
+    base: "Gateway base URL (e.g. http://127.0.0.1:8080)",
+    alias: "Org alias",
+    key: "Client API key for that alias",
+    help: "Show help",
+  });
   if (args.help) process.exit(0);
   console.error("Missing required --base --alias --key");
   process.exit(1);
@@ -112,9 +102,7 @@ try {
   });
   const projectsText = toolText(projectsCall.body);
   const projectsOk =
-    projectsCall.status === 200 &&
-    !projectsCall.body?.result?.isError &&
-    projectsText.length > 0;
+    projectsCall.status === 200 && !projectsCall.body?.result?.isError && projectsText.length > 0;
   rows.push({
     check: "core_list_projects",
     result: projectsOk ? "PASS" : "FAIL",
@@ -126,7 +114,9 @@ try {
   rows.push({
     check: "first project",
     result: project ? "PASS" : "FAIL",
-    detail: project ?? "core_list_projects returned no projects: the identity has no project access (add it to Readers)",
+    detail:
+      project ??
+      "core_list_projects returned no projects: the identity has no project access (add it to Readers)",
   });
 
   const enabled = new Set(tools.map((t) => t.name));
@@ -155,7 +145,11 @@ try {
       continue;
     }
     if (!enabled.has(p.name)) {
-      rows.push({ check: label, result: "WARN", detail: "skipped: tool not enabled for this alias" });
+      rows.push({
+        check: label,
+        result: "WARN",
+        detail: "skipped: tool not enabled for this alias",
+      });
       continue;
     }
     const r = await mcp("tools/call", { name: p.name, arguments: p.args });
@@ -166,14 +160,19 @@ try {
     if (missing) {
       rows.push({ check: label, result: "FAIL", detail: `missing PAT scope: ${missing}` });
     } else if (isErr && /not permitted/i.test(text)) {
-      rows.push({ check: label, result: "FAIL", detail: `blocked by gateway policy (probe bug or policy too tight): ${text.slice(0, 140)}` });
+      rows.push({
+        check: label,
+        result: "FAIL",
+        detail: `blocked by gateway policy (probe bug or policy too tight): ${text.slice(0, 140)}`,
+      });
     } else if (isErr) {
       rows.push({ check: label, result: "FAIL", detail: text.slice(0, 200) || `HTTP ${r.status}` });
     } else {
       rows.push({
         check: label,
         result: "PASS",
-        detail: text.length > 0 ? `${text.length} chars returned (empty list is fine)` : "empty result",
+        detail:
+          text.length > 0 ? `${text.length} chars returned (empty list is fine)` : "empty result",
       });
     }
   }
@@ -186,7 +185,5 @@ try {
 }
 
 console.log("");
-console.log(
-  "REMINDER: PATs must be organization-scoped. Global PATs stop working 2026-12-01.",
-);
+console.log("REMINDER: PATs must be organization-scoped. Global PATs stop working 2026-12-01.");
 process.exit(resultTable(rows) ? 0 : 1);

@@ -17,9 +17,7 @@ import {
   resultTable,
 } from "./_lib.mjs";
 
-const policy = JSON.parse(
-  readFileSync(resolveFromRoot("config/tool-policy.json"), "utf8"),
-);
+const policy = JSON.parse(readFileSync(resolveFromRoot("config/tool-policy.json"), "utf8"));
 const ALLOWED_ACTIONS = policy.allowedActions;
 const NO_ACTION_TOOLS = new Set(policy.noActionTools);
 const BLOCKED_ACTIONS = policy.reviewedBlockedActions ?? {};
@@ -84,7 +82,13 @@ const bin = ${JSON.stringify(adoBin)};
 const domains = ${JSON.stringify(domains)};
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: [bin, "drift-dummy-org", "--authentication", "pat", "--domains", ...domains],
+  args: [
+  bin,
+  "drift-dummy-org",
+  "--authentication", "pat",
+  "--tenant", "00000000-0000-0000-0000-000000000000",
+  "--domains", ...domains,
+],
   env: { PATH: process.env.PATH || "", PERSONAL_ACCESS_TOKEN: Buffer.from("mcp:dummy").toString("base64") },
   stderr: "ignore",
 });
@@ -210,7 +214,8 @@ try {
   const unreviewed = [];
   const missingUpstream = [];
   const mutationLooking = [];
-  const MUTATION = /^(create|update|delete|remove|add|set|run|queue|retry|cancel|approve|vote|complete|abandon|reply|resolve|link|unlink|upsert|write|assign|merge|publish|trigger|reorder|move|rename|reset|restore|restart|stop|start|enable|disable|import|push|commit)/i;
+  const MUTATION =
+    /^(create|update|delete|remove|add|set|run|queue|retry|cancel|approve|vote|complete|abandon|reply|resolve|link|unlink|upsert|write|assign|merge|publish|trigger|reorder|move|rename|reset|restore|restart|stop|start|enable|disable|import|push|commit)/i;
 
   for (const t of live) {
     if (!DEFAULT_ALLOW.has(t.name)) continue;

@@ -13,9 +13,7 @@ export class EnvSecretProvider implements SecretProvider {
 
   constructor(env: NodeJS.ProcessEnv = process.env) {
     if (env.NODE_ENV === "production") {
-      throw new Error(
-        "EnvSecretProvider must not be used when NODE_ENV=production",
-      );
+      throw new Error("EnvSecretProvider must not be used when NODE_ENV=production");
     }
     this.env = env;
   }

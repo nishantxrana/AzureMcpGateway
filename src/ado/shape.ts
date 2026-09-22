@@ -30,10 +30,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isIdentityObject(value: Record<string, unknown>): boolean {
-  return (
-    typeof value.displayName === "string" &&
-    typeof value.uniqueName === "string"
-  );
+  return typeof value.displayName === "string" && typeof value.uniqueName === "string";
 }
 
 function isProjectObject(value: Record<string, unknown>): boolean {
@@ -47,9 +44,7 @@ function isProjectObject(value: Record<string, unknown>): boolean {
 function cleanValue(value: unknown): unknown {
   if (value === null || value === undefined) return undefined;
   if (Array.isArray(value)) {
-    const cleaned = value
-      .map((item) => cleanValue(item))
-      .filter((item) => item !== undefined);
+    const cleaned = value.map((item) => cleanValue(item)).filter((item) => item !== undefined);
     return cleaned.length === 0 ? undefined : cleaned;
   }
   if (!isPlainObject(value)) return value;
@@ -78,11 +73,7 @@ function cleanValue(value: unknown): unknown {
 
   for (const [k, v] of Object.entries(value)) {
     if (REMOVE_KEYS.has(k)) continue;
-    if (
-      k === "properties" &&
-      isPlainObject(v) &&
-      Object.keys(v).length === 0
-    ) {
+    if (k === "properties" && isPlainObject(v) && Object.keys(v).length === 0) {
       continue;
     }
     const cleaned = cleanValue(v);
@@ -100,11 +91,7 @@ function shapePayload(payload: unknown): unknown {
   return cleaned === undefined ? (Array.isArray(payload) ? [] : {}) : cleaned;
 }
 
-function wrapEnvelope(
-  header: string,
-  footer: string,
-  body: string,
-): string {
+function wrapEnvelope(header: string, footer: string, body: string): string {
   return `${header}\n${body}\n${footer}`;
 }
 
@@ -115,11 +102,7 @@ function truncationNote(n: number, m: number): string {
   return TRUNCATION_NOTE.replace("N", String(n)).replace("M", String(m));
 }
 
-function applySizeCap(
-  text: string,
-  maxChars: number,
-  originalPayload: unknown,
-): ShapeResult {
+function applySizeCap(text: string, maxChars: number, originalPayload: unknown): ShapeResult {
   if (text.length <= maxChars) {
     return { texts: [text], truncated: false };
   }
@@ -134,11 +117,7 @@ function applySizeCap(
     while (lo <= hi) {
       const mid = Math.floor((lo + hi) / 2);
       const slice = originalPayload.slice(0, mid);
-      const candidate = wrapEnvelope(
-        header,
-        footer,
-        JSON.stringify(slice),
-      );
+      const candidate = wrapEnvelope(header, footer, JSON.stringify(slice));
       if (candidate.length <= maxChars) {
         best = mid;
         lo = mid + 1;
@@ -161,10 +140,7 @@ function applySizeCap(
     const budget = Math.max(0, maxChars - overhead);
     const truncatedPayload = match[2]!.slice(0, budget);
     return {
-      texts: [
-        wrapEnvelope(header, footer, truncatedPayload),
-        truncationNote(1, 1),
-      ],
+      texts: [wrapEnvelope(header, footer, truncatedPayload), truncationNote(1, 1)],
       truncated: true,
     };
   }
@@ -179,10 +155,7 @@ function applySizeCap(
  * Shape a single text content block. Returns one or more text blocks
  * (second block is truncation note when capped).
  */
-export function shapeText(
-  text: string,
-  maxResponseChars = 60_000,
-): ShapeResult {
+export function shapeText(text: string, maxResponseChars = 60_000): ShapeResult {
   const match = text.match(ENVELOPE_RE);
   if (!match) {
     return applySizeCap(text, maxResponseChars, undefined);
@@ -219,8 +192,7 @@ export function shapeToolResult(
 } {
   const isError = result.isError;
   let truncated = false;
-  const content: Array<{ type: string; text?: string; [k: string]: unknown }> =
-    [];
+  const content: Array<{ type: string; text?: string; [k: string]: unknown }> = [];
 
   for (const block of result.content ?? []) {
     if (block.type === "text" && typeof block.text === "string") {

@@ -13,9 +13,7 @@ const require = createRequire(import.meta.url);
 
 export function resolveAdoMcpBin(override?: string): string {
   if (override && override.length > 0) {
-    return path.isAbsolute(override)
-      ? override
-      : path.resolve(process.cwd(), override);
+    return path.isAbsolute(override) ? override : path.resolve(process.cwd(), override);
   }
   return path.join(
     path.dirname(require.resolve("@azure-devops/mcp/package.json")),
@@ -33,10 +31,7 @@ export interface ChildPool {
 /**
  * Bounded concurrency for child spawns. Queue wait max 10s then throws busy.
  */
-export function createChildPool(
-  maxConcurrent: number,
-  queueTimeoutMs = 10_000,
-): ChildPool {
+export function createChildPool(maxConcurrent: number, queueTimeoutMs = 10_000): ChildPool {
   let active = 0;
   const waiters: Array<{
     resolve: () => void;
@@ -120,13 +115,7 @@ export async function withAdoChild<T>(
 
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [
-      bin,
-      opts.org.adoOrg,
-      ...creds.authArgs,
-      "--domains",
-      ...opts.org.domains,
-    ],
+    args: [bin, opts.org.adoOrg, ...creds.authArgs, "--domains", ...opts.org.domains],
     env,
     stderr: "pipe",
   });

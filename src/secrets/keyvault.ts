@@ -1,8 +1,5 @@
 import { DefaultAzureCredential } from "@azure/identity";
-import {
-  SecretClient,
-  type KeyVaultSecret,
-} from "@azure/keyvault-secrets";
+import { SecretClient, type KeyVaultSecret } from "@azure/keyvault-secrets";
 import type { SecretProvider } from "./provider.js";
 
 const POSITIVE_TTL_MS = 5 * 60 * 1000;
@@ -31,15 +28,9 @@ export class KeyVaultSecretProvider implements SecretProvider {
   private readonly clock: Clock;
   private readonly cache = new Map<string, CacheEntry>();
 
-  constructor(opts: {
-    vaultUrl: string;
-    client?: KeyVaultClientLike;
-    clock?: Clock;
-  }) {
+  constructor(opts: { vaultUrl: string; client?: KeyVaultClientLike; clock?: Clock }) {
     this.clock = opts.clock ?? { now: () => Date.now() };
-    this.client =
-      opts.client ??
-      new SecretClient(opts.vaultUrl, new DefaultAzureCredential());
+    this.client = opts.client ?? new SecretClient(opts.vaultUrl, new DefaultAzureCredential());
   }
 
   async getSecret(name: string): Promise<string> {

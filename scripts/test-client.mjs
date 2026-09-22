@@ -15,16 +15,28 @@ if (!url || !key) {
 }
 
 const client = new Client({ name: "smoke-test", version: "1.0.0" });
-await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers: { "X-API-Key": key } } }));
+await client.connect(
+  new StreamableHTTPClientTransport(new URL(url), {
+    requestInit: { headers: { "X-API-Key": key } },
+  }),
+);
 
 if (!tool) {
   const { tools } = await client.listTools();
   console.log(`Connected. ${tools.length} tools:\n`);
-  for (const t of tools) console.log(` - ${t.name}: ${(t.description ?? "").split("\n")[0].slice(0, 90)}`);
+  for (const t of tools)
+    console.log(` - ${t.name}: ${(t.description ?? "").split("\n")[0].slice(0, 90)}`);
 } else {
   const r = await client.callTool({ name: tool, arguments: argsJson ? JSON.parse(argsJson) : {} });
   const text = r.content?.map((c) => c.text ?? "").join("\n") ?? "";
-  if (r.isError) { console.error("TOOL ERROR:\n" + text.slice(0, 2000)); process.exit(2); }
-  try { console.log(JSON.stringify(JSON.parse(text), null, 2).slice(0, 6000)); } catch { console.log(text.slice(0, 6000)); }
+  if (r.isError) {
+    console.error("TOOL ERROR:\n" + text.slice(0, 2000));
+    process.exit(2);
+  }
+  try {
+    console.log(JSON.stringify(JSON.parse(text), null, 2).slice(0, 6000));
+  } catch {
+    console.log(text.slice(0, 6000));
+  }
 }
 await client.close();

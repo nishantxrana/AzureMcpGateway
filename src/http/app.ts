@@ -1,26 +1,12 @@
 import { randomUUID } from "node:crypto";
-import express, {
-  type Express,
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import type { Logger } from "../observability/logger.js";
 import type { EnvConfig } from "../config/env.js";
-import {
-  ALIAS_REGEX,
-  type OrgEntry,
-  type Registry,
-  getOrgByAlias,
-} from "../config/registry.js";
+import { ALIAS_REGEX, type OrgEntry, type Registry, getOrgByAlias } from "../config/registry.js";
 import type { SecretProvider } from "../secrets/provider.js";
-import {
-  ApiKeyAuthenticator,
-  UNAUTHORIZED_BODY,
-  safeEqual,
-} from "../auth/clientAuth.js";
+import { ApiKeyAuthenticator, UNAUTHORIZED_BODY, safeEqual } from "../auth/clientAuth.js";
 import { McpGateway } from "../mcp/gateway.js";
 
 const BODY_LIMIT = 256 * 1024;
@@ -55,21 +41,13 @@ function sendUnauthorized(res: Response): void {
   res.status(401).type("json").send(JSON.stringify(UNAUTHORIZED_BODY));
 }
 
-function jsonRpcError(
-  res: Response,
-  status: number,
-  code: number,
-  message: string,
-): void {
-  res
-    .status(status)
-    .json({ jsonrpc: "2.0", error: { code, message }, id: null });
+function jsonRpcError(res: Response, status: number, code: number, message: string): void {
+  res.status(status).json({ jsonrpc: "2.0", error: { code, message }, id: null });
 }
 
 export async function createApp(deps: AppDeps): Promise<CreatedApp> {
   const authenticator =
-    deps.authenticator ??
-    (await ApiKeyAuthenticator.create(deps.registry, deps.secrets));
+    deps.authenticator ?? (await ApiKeyAuthenticator.create(deps.registry, deps.secrets));
 
   const gateway =
     deps.gateway ??
@@ -100,7 +78,10 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
   });
 
   app.get("/healthz", (_req, res) => {
-    res.status(200).type("json").send(JSON.stringify({ status: "ok" }));
+    res
+      .status(200)
+      .type("json")
+      .send(JSON.stringify({ status: "ok" }));
   });
 
   const resolveAdminKey =
@@ -128,9 +109,7 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
   };
 
   app.get("/readyz", async (req, res) => {
-    const check = deps.readinessCheck
-      ? await deps.readinessCheck()
-      : await defaultReadiness();
+    const check = deps.readinessCheck ? await deps.readinessCheck() : await defaultReadiness();
 
     const adminPresented = req.get("x-admin-key");
     const adminExpected = await resolveAdminKey();
@@ -178,8 +157,8 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
   const aliasLimiter = rateLimit({
     windowMs: 60_000,
     limit: (req) =>
-      getOrgByAlias(deps.registry, String(req.params.alias ?? ""))?.limits
-        .ratePerMinute ?? DEFAULT_RATE_PER_MINUTE,
+      getOrgByAlias(deps.registry, String(req.params.alias ?? ""))?.limits.ratePerMinute ??
+      DEFAULT_RATE_PER_MINUTE,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => `${bucketFor(req)}:${req.ip ?? "unknown"}`,
@@ -189,22 +168,14 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
     },
   });
 
-  const assignRequestId = (
-    _req: Request,
-    res: Response,
-    next: NextFunction,
-  ): void => {
+  const assignRequestId = (_req: Request, res: Response, next: NextFunction): void => {
     const requestId = randomUUID();
     res.locals.requestId = requestId;
     res.setHeader("X-Request-Id", requestId);
     next();
   };
 
-  const authenticate = async (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
+  const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const requestId = res.locals.requestId as string;
     const alias = String(req.params.alias ?? "");
 
@@ -219,10 +190,7 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
       return;
     }
 
-    const auth = await authenticator.authenticate(
-      alias,
-      req.get("x-api-key") ?? undefined,
-    );
+    const auth = await authenticator.authenticate(alias, req.get("x-api-key") ?? undefined);
     if (!auth.ok) {
       deps.logger.info(
         {
@@ -254,9 +222,7 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
         return;
       }
       const type =
-        typeof err === "object" && "type" in err
-          ? (err as { type?: string }).type
-          : undefined;
+        typeof err === "object" && "type" in err ? (err as { type?: string }).type : undefined;
       if (type === "entity.too.large") {
         jsonRpcError(res, 413, -32000, "Payload Too Large");
         return;
@@ -284,12 +250,7 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
           "mcp handler failed",
         );
         if (!res.headersSent) {
-          jsonRpcError(
-            res,
-            500,
-            -32603,
-            `Internal error (requestId=${requestId})`,
-          );
+          jsonRpcError(res, 500, -32603, `Internal error (requestId=${requestId})`);
         }
       }
     },
@@ -307,16 +268,9 @@ export async function createApp(deps: AppDeps): Promise<CreatedApp> {
   });
 
   // Last-resort error handler: never leak internals.
-  app.use(
-    (
-      _err: unknown,
-      _req: Request,
-      res: Response,
-      _next: NextFunction,
-    ): void => {
-      if (!res.headersSent) jsonRpcError(res, 400, -32700, "Parse error");
-    },
-  );
+  app.use((_err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
+    if (!res.headersSent) jsonRpcError(res, 400, -32700, "Parse error");
+  });
 
   let shuttingDown = false;
   const shutdown = async (): Promise<void> => {

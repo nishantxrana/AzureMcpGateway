@@ -34,8 +34,7 @@ preflight([
 const rows = [];
 const gitignore = resolveFromRoot(".gitignore");
 const gitignoreText = existsSync(gitignore) ? readFileSync(gitignore, "utf8") : "";
-const envIgnored =
-  gitignoreText.includes(".env") || gitignoreText.includes(".env*");
+const envIgnored = gitignoreText.includes(".env") || gitignoreText.includes(".env*");
 rows.push({
   check: ".env gitignored",
   result: envIgnored ? "PASS" : "FAIL",
@@ -56,14 +55,7 @@ if (gitleaks.status === 0) {
     { name: "azure-client-secret-assign", re: /AZURE_CLIENT_SECRET\s*=\s*\S+/g },
     { name: "private-key", re: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
   ];
-  const skipDirs = new Set([
-    "node_modules",
-    "dist",
-    ".git",
-    "artifacts",
-    "coverage",
-    ".cursor",
-  ]);
+  const skipDirs = new Set(["node_modules", "dist", ".git", "artifacts", "coverage", ".cursor"]);
   const findings = [];
 
   function walk(dir) {

@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const spawnSync = vi.hoisted(() =>
-  vi.fn(() => ({ status: 0, stdout: "", stderr: "" })),
-);
+const spawnSync = vi.hoisted(() => vi.fn(() => ({ status: 0, stdout: "", stderr: "" })));
 vi.mock("node:child_process", () => ({ spawnSync }));
 
 // @ts-expect-error plain-JS helper without type declarations
@@ -27,7 +25,11 @@ describe("runCommand (the Windows 'exit null' bug)", () => {
     setPlatform("win32");
     process.env.npm_execpath = "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js";
     lib.runCommand("npm", ["run", "lint"]);
-    const [cmd, args, opts] = spawnSync.mock.calls[0] as unknown as [string, string[], { shell: boolean }];
+    const [cmd, args, opts] = spawnSync.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { shell: boolean },
+    ];
     expect(cmd).toBe(process.execPath);
     expect(args).toEqual([process.env.npm_execpath, "run", "lint"]);
     expect(opts.shell).toBe(false);
@@ -36,7 +38,11 @@ describe("runCommand (the Windows 'exit null' bug)", () => {
   it("win32: az uses a shell with one quoted command string", () => {
     setPlatform("win32");
     lib.runCommand("az", ["keyvault", "secret", "show", "--name", "my secret"]);
-    const [cmd, args, opts] = spawnSync.mock.calls[0] as unknown as [string, string[], { shell: boolean }];
+    const [cmd, args, opts] = spawnSync.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { shell: boolean },
+    ];
     expect(opts.shell).toBe(true);
     expect(args).toEqual([]);
     expect(cmd).toBe('az keyvault secret show --name "my secret"');
@@ -45,7 +51,11 @@ describe("runCommand (the Windows 'exit null' bug)", () => {
   it("win32: npm without npm_execpath still works via the shell", () => {
     setPlatform("win32");
     lib.runCommand("npm", ["test"]);
-    const [cmd, , opts] = spawnSync.mock.calls[0] as unknown as [string, string[], { shell: boolean }];
+    const [cmd, , opts] = spawnSync.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { shell: boolean },
+    ];
     expect(opts.shell).toBe(true);
     expect(cmd).toBe("npm test");
   });
@@ -53,7 +63,11 @@ describe("runCommand (the Windows 'exit null' bug)", () => {
   it("win32: real executables (git, node) are spawned directly, no shell", () => {
     setPlatform("win32");
     lib.runCommand("git", ["rev-parse", "--short", "HEAD"]);
-    const [cmd, args, opts] = spawnSync.mock.calls[0] as unknown as [string, string[], { shell: boolean }];
+    const [cmd, args, opts] = spawnSync.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { shell: boolean },
+    ];
     expect(cmd).toBe("git");
     expect(args).toEqual(["rev-parse", "--short", "HEAD"]);
     expect(opts.shell).toBe(false);
@@ -62,7 +76,11 @@ describe("runCommand (the Windows 'exit null' bug)", () => {
   it("linux: everything is spawned directly with shell disabled", () => {
     setPlatform("linux");
     lib.runCommand("az", ["version"]);
-    const [cmd, , opts] = spawnSync.mock.calls[0] as unknown as [string, string[], { shell: boolean }];
+    const [cmd, , opts] = spawnSync.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { shell: boolean },
+    ];
     expect(cmd).toBe("az");
     expect(opts.shell).toBe(false);
   });

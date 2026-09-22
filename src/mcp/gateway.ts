@@ -9,11 +9,7 @@ import type { Request, Response } from "express";
 import type { OrgEntry } from "../config/registry.js";
 import type { Logger } from "../observability/logger.js";
 import type { SecretProvider } from "../secrets/provider.js";
-import {
-  createChildPool,
-  withAdoChild,
-  type ChildPool,
-} from "../ado/child.js";
+import { createChildPool, withAdoChild, type ChildPool } from "../ado/child.js";
 import { evaluateToolCall, filterToolsByPolicy } from "../ado/toolPolicy.js";
 import { shapeToolResult } from "../ado/shape.js";
 
@@ -66,9 +62,7 @@ export class McpGateway {
     this.logger = deps.logger;
     this.adoMcpBin = deps.adoMcpBin;
     this.childTimeoutMs = deps.childTimeoutMs;
-    this.pool =
-      deps.childPool ??
-      createChildPool(deps.maxConcurrentChildren, deps.queueTimeoutMs);
+    this.pool = deps.childPool ?? createChildPool(deps.maxConcurrentChildren, deps.queueTimeoutMs);
     this.clock = deps.clock ?? (() => Date.now());
   }
 
@@ -86,10 +80,7 @@ export class McpGateway {
       await this.listToolsFiltered(org);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(
-        { alias: org.alias, err: msg },
-        "tools/list warm failed",
-      );
+      this.logger.warn({ alias: org.alias, err: msg }, "tools/list warm failed");
     }
   }
 
@@ -111,10 +102,7 @@ export class McpGateway {
         },
         async (client) => {
           const listed = await client.listTools();
-          return filterToolsByPolicy(
-            listed.tools as Tool[],
-            org.toolPolicy,
-          );
+          return filterToolsByPolicy(listed.tools as Tool[], org.toolPolicy);
         },
       ),
     );
@@ -131,9 +119,7 @@ export class McpGateway {
       { name: `ado-gateway/${org.alias}`, version: "0.1.0" },
       {
         capabilities: { tools: {} },
-        ...(org.instructions
-          ? { instructions: org.instructions }
-          : {}),
+        ...(org.instructions ? { instructions: org.instructions } : {}),
       },
     );
 
@@ -197,10 +183,7 @@ export class McpGateway {
           {
             ...baseLog,
             durationMs: this.clock() - started,
-            outcome:
-              decision.code === "tool_not_permitted"
-                ? "denied"
-                : "action_denied",
+            outcome: decision.code === "tool_not_permitted" ? "denied" : "action_denied",
           },
           "mcp",
         );
@@ -238,10 +221,7 @@ export class McpGateway {
           (n, b) => n + (typeof b.text === "string" ? b.text.length : 0),
           0,
         );
-        const shaped = shapeToolResult(
-          raw,
-          org.limits.maxResponseChars,
-        );
+        const shaped = shapeToolResult(raw, org.limits.maxResponseChars);
         const responseChars = shaped.content.reduce(
           (n, b) => n + (typeof b.text === "string" ? b.text.length : 0),
           0,
@@ -261,9 +241,7 @@ export class McpGateway {
 
         return {
           content: shaped.content,
-          ...(shaped.isError !== undefined
-            ? { isError: shaped.isError }
-            : {}),
+          ...(shaped.isError !== undefined ? { isError: shaped.isError } : {}),
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "tool call failed";

@@ -53,9 +53,7 @@ export function testEnv(overrides: Partial<EnvConfig> = {}): EnvConfig {
   };
 }
 
-export function testSecretEnv(
-  extra: Record<string, string> = {},
-): NodeJS.ProcessEnv {
+export function testSecretEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return {
     NODE_ENV: "test",
     SECRET__ADO_COOLOPS_PAT: "pat-coolops",
@@ -90,8 +88,7 @@ export async function startTestApp(
 
   const logger = createLogger({ level: "info", destination: logStream });
   const secretEnv = overrides.secretEnv ?? testSecretEnv();
-  const secrets =
-    overrides.secrets ?? new EnvSecretProvider(secretEnv);
+  const secrets = overrides.secrets ?? new EnvSecretProvider(secretEnv);
   const registry = overrides.registry ?? testRegistry();
   const env = overrides.env ?? testEnv();
 

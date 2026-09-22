@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import { writeFileSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  loadRegistry,
-  registrySchema,
-  writeOrgJsonSchema,
-} from "../../src/config/registry.js";
+import { loadRegistry, registrySchema, writeOrgJsonSchema } from "../../src/config/registry.js";
 
 const validOrg = {
   alias: "coolops",
@@ -123,11 +119,7 @@ describe("registry", () => {
   it("loadRegistry reads a file", () => {
     const dir = mkdtempSync(join(tmpdir(), "reg-"));
     const path = join(dir, "orgs.json");
-    writeFileSync(
-      path,
-      JSON.stringify({ version: 1, orgs: [validOrg] }),
-      "utf8",
-    );
+    writeFileSync(path, JSON.stringify({ version: 1, orgs: [validOrg] }), "utf8");
     try {
       const reg = loadRegistry(path);
       expect(reg.orgs).toHaveLength(1);

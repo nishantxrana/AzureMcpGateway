@@ -105,7 +105,9 @@ describe("child pool", () => {
 
 describe("clientSafeError", () => {
   it("passes our own messages and hides everything else", () => {
-    expect(clientSafeError("Gateway busy: too many concurrent tool calls", "r1")).toMatch(/Gateway busy/);
+    expect(clientSafeError("Gateway busy: too many concurrent tool calls", "r1")).toMatch(
+      /Gateway busy/,
+    );
     expect(clientSafeError("Child timed out after 60000ms", "r1")).toMatch(/timed out/);
     const hidden = clientSafeError("spawn /home/site/wwwroot/node_modules/x ENOENT", "r1");
     expect(hidden).not.toContain("/home/site");

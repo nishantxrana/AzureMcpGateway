@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { EnvSecretProvider, secretEnvKey } from "../../src/secrets/env.js";
-import {
-  KeyVaultSecretProvider,
-  type KeyVaultClientLike,
-} from "../../src/secrets/keyvault.js";
+import { KeyVaultSecretProvider, type KeyVaultClientLike } from "../../src/secrets/keyvault.js";
 
 describe("EnvSecretProvider", () => {
   it("maps secret names to SECRET__UPPER_SNAKE", () => {
@@ -19,9 +16,7 @@ describe("EnvSecretProvider", () => {
   });
 
   it("refuses production", () => {
-    expect(
-      () => new EnvSecretProvider({ NODE_ENV: "production" }),
-    ).toThrow(/production/);
+    expect(() => new EnvSecretProvider({ NODE_ENV: "production" })).toThrow(/production/);
   });
 
   it("throws on missing secret", async () => {
@@ -92,10 +87,7 @@ describe("KeyVaultSecretProvider cache", () => {
       client,
     });
     await p.getSecret("x");
-    const combined = [...spy.mock.calls, ...spyErr.mock.calls]
-      .flat()
-      .map(String)
-      .join("\n");
+    const combined = [...spy.mock.calls, ...spyErr.mock.calls].flat().map(String).join("\n");
     expect(combined).not.toContain("SUPER_SECRET_SENTINEL_VALUE");
     spy.mockRestore();
     spyErr.mockRestore();

@@ -1,11 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import {
-  mcpPost,
-  rpc,
-  startTestApp,
-  SENTINEL,
-  testSecretEnv,
-} from "../helpers/testApp.js";
+import { mcpPost, rpc, startTestApp, SENTINEL, testSecretEnv } from "../helpers/testApp.js";
 import { UNAUTHORIZED_BODY } from "../../src/auth/clientAuth.js";
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -21,28 +15,24 @@ describe("HTTP routing and auth", () => {
     const ctx = await startTestApp();
     cleanups.push(ctx.shutdown);
 
-    const init = await mcpPost(ctx.baseUrl, "coolops", rpc("initialize", {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "t", version: "1" },
-    }), "key-coolops-a");
-    expect(init.status).toBe(200);
-
-    const list = await mcpPost(
+    const init = await mcpPost(
       ctx.baseUrl,
       "coolops",
-      rpc("tools/list", {}),
+      rpc("initialize", {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "t", version: "1" },
+      }),
       "key-coolops-a",
     );
+    expect(init.status).toBe(200);
+
+    const list = await mcpPost(ctx.baseUrl, "coolops", rpc("tools/list", {}), "key-coolops-a");
     expect(list.status).toBe(200);
-    const tools = (
-      list.body as { result?: { tools?: Array<{ name: string }> } }
-    ).result?.tools;
+    const tools = (list.body as { result?: { tools?: Array<{ name: string }> } }).result?.tools;
     expect(tools?.some((t) => t.name === "core_list_projects")).toBe(true);
     expect(tools?.some((t) => t.name === "pipelines_write")).toBe(false);
-    expect(tools?.some((t) => t.name === "fake_upstream_new_tool")).toBe(
-      false,
-    );
+    expect(tools?.some((t) => t.name === "fake_upstream_new_tool")).toBe(false);
   });
 
   it("uniform 401 for missing/wrong/unknown alias/cross-org", async () => {

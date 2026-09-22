@@ -23,6 +23,7 @@ Everything Cursor needs lives under `.cursor/`, so the repo root stays clean.
 ```
 
 ## How to use
+
 1. Unzip into the repo root (it only adds `.cursor/`). Commit it.
 2. Work through `.cursor/kit/PREREQUISITES.md`, sections A to F at least.
 3. Open the repo in Cursor, start Agent mode, type `/gw-plan`. Read the plan and the objections, answer them, then say "go".
@@ -31,6 +32,7 @@ Everything Cursor needs lives under `.cursor/`, so the repo root stays clean.
 6. Before merging any phase run `/gw-review`.
 
 ## Notes
+
 - Rules must be `.mdc` files with frontmatter; plain `.md` files in `.cursor/rules` are ignored by Cursor. Commands are plain `.md` files in `.cursor/commands`.
 - Glob-scoped rules attach only when matching files are in context, which is why every command tells Cursor to read the rule files explicitly.
 - If `/` does not list the commands, update Cursor (custom commands need a recent version) and reopen the folder.

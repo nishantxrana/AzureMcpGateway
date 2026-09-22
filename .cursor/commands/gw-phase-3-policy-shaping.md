@@ -3,6 +3,7 @@
 Read first: `10-architecture.mdc` (allowlist, action regex), `20-verification.mdc` (policy, shaping, tool-drift), `50-traps.mdc`, and `.cursor/kit/reference/fixtures/pipelines_build.list.sample.txt`.
 
 Tasks
+
 1. `src/ado/toolPolicy.ts`: default-deny allowlist, per-org `extraAllow` and `extraDeny`, and the action deny regex. Generate `config/tool-snapshot.json` (every tool name and every `action` enum value for the pinned official version and the 5 default domains). Implement `scripts/verify/tool-drift.mjs`.
 2. `src/ado/shape.ts`, applied to every text content block:
    1. Detect the envelope with `/^(<<[0-9a-f]+>> \[UNTRUSTED [^\]]*\] <<[0-9a-f]+>>)\n([\s\S]*)\n(<<\/[0-9a-f]+>>)\s*$/`. If it does not match, pass through unchanged (still apply the size cap).
@@ -14,6 +15,7 @@ Tasks
 3. Never alter `isError`. Never remove `id`, `name`, `status`, `result`, `webUrl`, dates, branch or repository names.
 
 Accept
+
 - On the fixture the shaped output is at least 60% smaller, still valid JSON inside an intact envelope, and keeps `id`, `buildNumber`, `status`, `result`, `sourceBranch`, `webUrl`, definition name, project name.
 - Fuzz test: 200 random JSON payloads never throw and never grow.
 - Oversized-array truncation test.

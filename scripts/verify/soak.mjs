@@ -2,13 +2,7 @@
 /**
  * verify:soak — concurrency / latency hammer for tools/list + one cheap tools/call.
  */
-import {
-  nodeMajorOk,
-  parseArgs,
-  printHelp,
-  preflight,
-  resultTable,
-} from "./_lib.mjs";
+import { nodeMajorOk, parseArgs, printHelp, preflight, resultTable } from "./_lib.mjs";
 
 const args = parseArgs();
 if (args.help || !args.base || !args.alias || !args.key) {
@@ -53,7 +47,12 @@ async function once(method, params) {
     const text = await res.text();
     return { status: res.status, ms: Date.now() - t0, text, netError: null };
   } catch (e) {
-    return { status: 0, ms: Date.now() - t0, text: "", netError: e instanceof Error ? e.message : String(e) };
+    return {
+      status: 0,
+      ms: Date.now() - t0,
+      text: "",
+      netError: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 
@@ -83,7 +82,9 @@ function record(r, { isCall }) {
 async function worker() {
   while (Date.now() < deadline) {
     record(await once("tools/list", {}), { isCall: false });
-    record(await once("tools/call", { name: "core_list_projects", arguments: {} }), { isCall: true });
+    record(await once("tools/call", { name: "core_list_projects", arguments: {} }), {
+      isCall: true,
+    });
   }
 }
 
@@ -95,7 +96,10 @@ const rows = [
   {
     check: "gateway reachable",
     result: netErrors === 0 ? "PASS" : "FAIL",
-    detail: netErrors === 0 ? "no network errors" : `${netErrors} network errors, first: ${firstNetError.slice(0, 120)}`,
+    detail:
+      netErrors === 0
+        ? "no network errors"
+        : `${netErrors} network errors, first: ${firstNetError.slice(0, 120)}`,
   },
   {
     check: "no unexpected 5xx",

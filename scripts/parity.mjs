@@ -65,15 +65,15 @@ async function listProjects(url, apiKey) {
     }),
   });
   const body = await res.json();
-  const text = (body?.result?.content ?? [])
-    .map((c) => c.text ?? "")
-    .join("\n");
+  const text = (body?.result?.content ?? []).map((c) => c.text ?? "").join("\n");
   // Extract project names heuristically
   const names = new Set();
   try {
     const m = text.match(/\n(\[[\s\S]*\])\n/);
-    const json = JSON.parse(m ? m[1] : text.replace(/^<<[\s\S]*?>>\n/, "").replace(/\n<<\/[\s\S]*$/, ""));
-    const arr = Array.isArray(json) ? json : json.value ?? [];
+    const json = JSON.parse(
+      m ? m[1] : text.replace(/^<<[\s\S]*?>>\n/, "").replace(/\n<<\/[\s\S]*$/, ""),
+    );
+    const arr = Array.isArray(json) ? json : (json.value ?? []);
     for (const p of arr) {
       if (p?.name) names.add(String(p.name));
     }
@@ -109,8 +109,7 @@ if (args.gateway) {
       );
       console.log(`legacy projects (${leg.names.length}): ${leg.names.join(", ")}`);
       const same =
-        gw.names.length === leg.names.length &&
-        gw.names.every((n, i) => n === leg.names[i]);
+        gw.names.length === leg.names.length && gw.names.every((n, i) => n === leg.names[i]);
       console.log(same ? "PARITY: PASS" : "PARITY: FAIL");
       process.exit(same ? 0 : 2);
     } finally {

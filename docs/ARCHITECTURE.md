@@ -31,13 +31,13 @@ See `.cursor/rules/10-architecture.mdc` decision table (custom bridge vs mcp-pro
 
 ## Failure modes
 
-| Failure | Client sees | Recovery |
-|---|---|---|
-| Wrong API key | Identical 401 | Rotate / use key-b |
-| Missing org secret | 503 for that alias | Put secret in Key Vault |
-| Child hang | Tool error after timeout | Automatic kill + reap |
-| Upstream ADO 401/203 HTML | Tool error (no body leak) | Fix PAT scopes / identity |
-| Tool drift after upgrade | CI `verify:drift` fails | Review the new action, then add it to `allowedActions` or `reviewedBlockedActions` in `config/tool-policy.json` and refresh the snapshot |
+| Failure                   | Client sees               | Recovery                                                                                                                                 |
+| ------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrong API key             | Identical 401             | Rotate / use key-b                                                                                                                       |
+| Missing org secret        | 503 for that alias        | Put secret in Key Vault                                                                                                                  |
+| Child hang                | Tool error after timeout  | Automatic kill + reap                                                                                                                    |
+| Upstream ADO 401/203 HTML | Tool error (no body leak) | Fix PAT scopes / identity                                                                                                                |
+| Tool drift after upgrade  | CI `verify:drift` fails   | Review the new action, then add it to `allowedActions` or `reviewedBlockedActions` in `config/tool-policy.json` and refresh the snapshot |
 
 ## Runtime
 

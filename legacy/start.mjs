@@ -13,7 +13,9 @@ const {
   PORT = "8080",
 } = process.env;
 
-const missing = Object.entries({ ADO_ORG, ADO_PAT, MCP_API_KEY }).filter(([, v]) => !v).map(([k]) => k);
+const missing = Object.entries({ ADO_ORG, ADO_PAT, MCP_API_KEY })
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
 if (missing.length) {
   console.error(`Missing required app settings: ${missing.join(", ")}`);
   process.exit(1);
@@ -29,22 +31,34 @@ const child = spawn(
   process.execPath,
   [
     proxyBin,
-    "--host", "0.0.0.0",
-    "--port", PORT,
-    "--server", "stream",
-    "--streamEndpoint", "/mcp",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    PORT,
+    "--server",
+    "stream",
+    "--streamEndpoint",
+    "/mcp",
     "--stateless",
-    "--apiKey", MCP_API_KEY,
+    "--apiKey",
+    MCP_API_KEY,
     "--",
-    process.execPath, adoBin, ADO_ORG,
-    "--authentication", "pat",
-    "--domains", ...domains,
+    process.execPath,
+    adoBin,
+    ADO_ORG,
+    "--authentication",
+    "pat",
+    "--domains",
+    ...domains,
   ],
   {
     stdio: "inherit",
     // The official server wants base64("<any email>:<pat>") in PERSONAL_ACCESS_TOKEN.
-    env: { ...process.env, PERSONAL_ACCESS_TOKEN: Buffer.from(`mcp:${ADO_PAT}`).toString("base64") },
-  }
+    env: {
+      ...process.env,
+      PERSONAL_ACCESS_TOKEN: Buffer.from(`mcp:${ADO_PAT}`).toString("base64"),
+    },
+  },
 );
 
 for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => child.kill(sig));

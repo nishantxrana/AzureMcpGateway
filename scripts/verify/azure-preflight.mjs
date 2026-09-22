@@ -32,8 +32,18 @@ if (args.help || !args.rg || !args.app || !args.kv) {
 
 preflight([
   { name: "Node >= 22", ok: nodeMajorOk(), detail: process.versions.node, fix: "Install Node 22" },
-  { name: "az installed", ok: azAvailable(), detail: azAvailable() ? "ok" : "missing", fix: "Install Azure CLI" },
-  { name: "az logged in", ok: azLoggedIn(), detail: azLoggedIn() ? "ok" : "not logged in", fix: "az login" },
+  {
+    name: "az installed",
+    ok: azAvailable(),
+    detail: azAvailable() ? "ok" : "missing",
+    fix: "Install Azure CLI",
+  },
+  {
+    name: "az logged in",
+    ok: azLoggedIn(),
+    detail: azLoggedIn() ? "ok" : "not logged in",
+    fix: "az login",
+  },
 ]);
 
 function azJson(argv) {
@@ -82,8 +92,16 @@ try {
   const softDelete = Boolean(vault?.properties?.enableSoftDelete ?? true);
   const purge = vault?.properties?.enablePurgeProtection === true;
   rows.push({ check: "KV RBAC", result: rbac ? "PASS" : "FAIL", detail: String(rbac) });
-  rows.push({ check: "KV soft delete", result: softDelete ? "PASS" : "FAIL", detail: String(softDelete) });
-  rows.push({ check: "KV purge protection", result: purge ? "PASS" : "FAIL", detail: String(purge) });
+  rows.push({
+    check: "KV soft delete",
+    result: softDelete ? "PASS" : "FAIL",
+    detail: String(softDelete),
+  });
+  rows.push({
+    check: "KV purge protection",
+    result: purge ? "PASS" : "FAIL",
+    detail: String(purge),
+  });
 
   const cfg = azJson([
     "webapp",
@@ -147,9 +165,7 @@ try {
     appName,
     ...(slot ? ["--slot", slot] : []),
   ]);
-  const settings = Object.fromEntries(
-    (settingsList ?? []).map((s) => [s.name, s.value]),
-  );
+  const settings = Object.fromEntries((settingsList ?? []).map((s) => [s.name, s.value]));
   rows.push({
     check: "WEBSITE_RUN_FROM_PACKAGE",
     result: settings.WEBSITE_RUN_FROM_PACKAGE === "1" ? "PASS" : "FAIL",

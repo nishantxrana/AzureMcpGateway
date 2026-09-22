@@ -1,13 +1,7 @@
 {
   "version": 1,
   "generatedFrom": "@azure-devops/mcp@2.10.0",
-  "domains": [
-    "core",
-    "repositories",
-    "pipelines",
-    "work-items",
-    "wiki"
-  ],
+  "domains": ["core", "repositories", "pipelines", "work-items", "wiki"],
   "tools": [
     {
       "name": "core_get_identity_ids",
@@ -23,56 +17,31 @@
     },
     {
       "name": "pipelines_artifact",
-      "actions": [
-        "list",
-        "download"
-      ]
+      "actions": ["list", "download"]
     },
     {
       "name": "pipelines_build",
-      "actions": [
-        "list",
-        "get_status",
-        "get_changes"
-      ]
+      "actions": ["list", "get_status", "get_changes"]
     },
     {
       "name": "pipelines_build_log",
-      "actions": [
-        "list",
-        "get_content"
-      ]
+      "actions": ["list", "get_content"]
     },
     {
       "name": "pipelines_definition",
-      "actions": [
-        "list",
-        "list_revisions"
-      ]
+      "actions": ["list", "list_revisions"]
     },
     {
       "name": "pipelines_run",
-      "actions": [
-        "get",
-        "list"
-      ]
+      "actions": ["get", "list"]
     },
     {
       "name": "pipelines_write",
-      "actions": [
-        "run_pipeline",
-        "create_pipeline",
-        "rename_pipeline",
-        "update_build_stage"
-      ]
+      "actions": ["run_pipeline", "create_pipeline", "rename_pipeline", "update_build_stage"]
     },
     {
       "name": "repo_branch",
-      "actions": [
-        "get",
-        "list",
-        "list_mine"
-      ]
+      "actions": ["get", "list", "list_mine"]
     },
     {
       "name": "repo_create_branch",
@@ -80,50 +49,27 @@
     },
     {
       "name": "repo_file",
-      "actions": [
-        "get_content",
-        "list_directory"
-      ]
+      "actions": ["get_content", "list_directory"]
     },
     {
       "name": "repo_pull_request",
-      "actions": [
-        "get",
-        "list",
-        "list_by_commits"
-      ]
+      "actions": ["get", "list", "list_by_commits"]
     },
     {
       "name": "repo_pull_request_thread",
-      "actions": [
-        "list",
-        "list_comments"
-      ]
+      "actions": ["list", "list_comments"]
     },
     {
       "name": "repo_pull_request_thread_write",
-      "actions": [
-        "create",
-        "reply",
-        "update",
-        "update_status"
-      ]
+      "actions": ["create", "reply", "update", "update_status"]
     },
     {
       "name": "repo_pull_request_write",
-      "actions": [
-        "create",
-        "update",
-        "update_reviewers",
-        "vote"
-      ]
+      "actions": ["create", "update", "update_reviewers", "vote"]
     },
     {
       "name": "repo_repository",
-      "actions": [
-        "get",
-        "list"
-      ]
+      "actions": ["get", "list"]
     },
     {
       "name": "repo_search_commits",
@@ -131,13 +77,7 @@
     },
     {
       "name": "wiki",
-      "actions": [
-        "list_wikis",
-        "get_wiki",
-        "list_pages",
-        "get_page",
-        "get_page_content"
-      ]
+      "actions": ["list_wikis", "get_wiki", "list_pages", "get_page", "get_page_content"]
     },
     {
       "name": "wiki_upsert_page",
@@ -145,19 +85,11 @@
     },
     {
       "name": "wit_backlog",
-      "actions": [
-        "list",
-        "list_work_items",
-        "reorder"
-      ]
+      "actions": ["list", "list_work_items", "reorder"]
     },
     {
       "name": "wit_query",
-      "actions": [
-        "get",
-        "get_results",
-        "wiql"
-      ]
+      "actions": ["get", "get_results", "wiql"]
     },
     {
       "name": "wit_work_item",
@@ -177,28 +109,15 @@
     },
     {
       "name": "wit_work_item_comment_write",
-      "actions": [
-        "add",
-        "update"
-      ]
+      "actions": ["add", "update"]
     },
     {
       "name": "wit_work_item_link_write",
-      "actions": [
-        "link",
-        "unlink",
-        "link_to_pull_request",
-        "add_artifact_link"
-      ]
+      "actions": ["link", "unlink", "link_to_pull_request", "add_artifact_link"]
     },
     {
       "name": "wit_work_item_write",
-      "actions": [
-        "create",
-        "update",
-        "update_batch",
-        "add_child"
-      ]
+      "actions": ["create", "update", "update_batch", "add_child"]
     }
   ]
 }

@@ -11,7 +11,9 @@ import { parseArgs, printHelp, resolveFromRoot } from "./verify/_lib.mjs";
 // an entry the gateway would refuse to start with.
 const registryModule = resolveFromRoot("dist/config/registry.js");
 if (!existsSync(registryModule)) {
-  console.error("dist/ not found. Run `npm run build` first (or use `npm run onboard -- ...`, which builds).");
+  console.error(
+    "dist/ not found. Run `npm run build` first (or use `npm run onboard -- ...`, which builds).",
+  );
   process.exit(1);
 }
 const { registrySchema } = await import(pathToFileURL(registryModule).href);
@@ -72,8 +74,7 @@ const entry = {
   clientKeys: [`mcp-${alias}-key-a`, `mcp-${alias}-key-b`],
   toolPolicy: { extraAllow: [], extraDeny: [] },
   limits: { ratePerMinute: 120, maxResponseChars: 60000 },
-  instructions:
-    "Use small 'top' values. Discover project names with core_list_projects first.",
+  instructions: "Use small 'top' values. Discover project names with core_list_projects first.",
 };
 
 if (authType !== "pat" && authType !== "entra-sp") {
@@ -81,7 +82,10 @@ if (authType !== "pat" && authType !== "entra-sp") {
   process.exit(1);
 }
 
-const candidate = { ...registry, orgs: [...registry.orgs, entry].sort((x, y) => x.alias.localeCompare(y.alias)) };
+const candidate = {
+  ...registry,
+  orgs: [...registry.orgs, entry].sort((x, y) => x.alias.localeCompare(y.alias)),
+};
 const check = registrySchema.safeParse(candidate);
 if (!check.success) {
   console.error("Refusing to write config/orgs.json. The new entry is invalid:");
@@ -116,7 +120,9 @@ console.log("  Header name: X-API-Key");
 console.log(`  Header value: (value of mcp-${alias}-key-a)`);
 
 console.log("");
-console.log(`(Optional) mcp-${alias}-key-b: create it only when rotating keys, see docs/RUNBOOK.md.`);
+console.log(
+  `(Optional) mcp-${alias}-key-b: create it only when rotating keys, see docs/RUNBOOK.md.`,
+);
 console.log("");
 console.log("After the Key Vault secrets exist, verify through a running gateway:");
 console.log(`  npm run verify:org -- --base <url> --alias ${alias} --key <key>`);

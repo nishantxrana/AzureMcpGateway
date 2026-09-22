@@ -1,11 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import {
-  mcpPost,
-  rpc,
-  startTestApp,
-  testEnv,
-  testSecretEnv,
-} from "../helpers/testApp.js";
+import { mcpPost, rpc, startTestApp, testEnv, testSecretEnv } from "../helpers/testApp.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -148,12 +142,10 @@ describe("policy and child isolation", () => {
         ),
       ]);
 
-      const textA = (
-        a.body as { result?: { content?: Array<{ text?: string }> } }
-      ).result?.content?.[0]?.text;
-      const textB = (
-        b.body as { result?: { content?: Array<{ text?: string }> } }
-      ).result?.content?.[0]?.text;
+      const textA = (a.body as { result?: { content?: Array<{ text?: string }> } }).result
+        ?.content?.[0]?.text;
+      const textB = (b.body as { result?: { content?: Array<{ text?: string }> } }).result
+        ?.content?.[0]?.text;
       expect(textA).toBeTruthy();
       expect(textB).toBeTruthy();
       expect(textA).not.toEqual(textB);
@@ -236,11 +228,7 @@ describe("policy and child isolation", () => {
   it("blocks wit_backlog.reorder and any unlisted action end to end", async () => {
     const ctx = await startTestApp();
     cleanups.push(ctx.shutdown);
-    for (const args of [
-      { action: "reorder" },
-      { action: "brand_new_upstream_action" },
-      {},
-    ]) {
+    for (const args of [{ action: "reorder" }, { action: "brand_new_upstream_action" }, {}]) {
       const res = await mcpPost(
         ctx.baseUrl,
         "coolops",

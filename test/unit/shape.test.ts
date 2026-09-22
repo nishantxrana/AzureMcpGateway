@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { shapeText, shapeToolResult } from "../../src/ado/shape.js";
 
-const fixturePath = join(
-  process.cwd(),
-  "test/fixtures/pipelines_build.list.sample.txt",
-);
+const fixturePath = join(process.cwd(), "test/fixtures/pipelines_build.list.sample.txt");
 
 describe("shapeText", () => {
   it("reduces fixture by at least 60% and preserves envelope + fields", () => {

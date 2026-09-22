@@ -22,15 +22,18 @@ describe("tool allowlist", () => {
   });
 
   it("honors extraAllow and extraDeny", () => {
-    expect(
-      isToolAllowed("pipelines_artifact", { extraAllow: ["pipelines_artifact"] }),
-    ).toBe(true);
+    expect(isToolAllowed("pipelines_artifact", { extraAllow: ["pipelines_artifact"] })).toBe(true);
     expect(isToolAllowed("wiki", { extraDeny: ["wiki"] })).toBe(false);
   });
 
   it("extraAllow can never enable a write-looking tool", () => {
     const policy = {
-      extraAllow: ["pipelines_write", "repo_create_branch", "wiki_upsert_page", "wit_work_item_write"],
+      extraAllow: [
+        "pipelines_write",
+        "repo_create_branch",
+        "wiki_upsert_page",
+        "wit_work_item_write",
+      ],
     };
     for (const name of policy.extraAllow) {
       expect(isToolAllowed(name, policy)).toBe(false);
@@ -43,9 +46,7 @@ describe("tool allowlist", () => {
       { name: "pipelines_write" },
       { name: "fake_upstream_new_tool" },
     ];
-    expect(filterToolsByPolicy(tools).map((t) => t.name)).toEqual([
-      "core_list_projects",
-    ]);
+    expect(filterToolsByPolicy(tools).map((t) => t.name)).toEqual(["core_list_projects"]);
   });
 
   it("resolveAllowedTools returns a set", () => {
@@ -118,9 +119,10 @@ describe("sanitizeTool", () => {
     };
     const before = JSON.stringify(tool);
     const out = sanitizeTool(tool);
-    expect(
-      (out.inputSchema.properties.action as { enum: string[] }).enum,
-    ).toEqual(["list", "list_work_items"]);
+    expect((out.inputSchema.properties.action as { enum: string[] }).enum).toEqual([
+      "list",
+      "list_work_items",
+    ]);
     expect(JSON.stringify(tool)).toBe(before);
   });
 

@@ -23,7 +23,8 @@ if (args.help || !args.base || !args.alias || !args.key) {
       alias: "Known alias",
       key: "Valid API key",
       "expect-revoked": "Optional key that must fail after rotation",
-      "test-limits": "Also probe the failed-request throttle (automatic for localhost; opt-in elsewhere)",
+      "test-limits":
+        "Also probe the failed-request throttle (automatic for localhost; opt-in elsewhere)",
       help: "Show help",
     },
   );
@@ -78,7 +79,12 @@ const LEAK = /\bat\s+\S+\s+\(|node_modules|[A-Za-z]:\\|\/home\/|\/usr\/|stack/i;
 
 // Uniform 401 bodies
 const cases = [
-  { name: "no key", path: `/mcp/${alias}`, headers: {}, body: { jsonrpc: "2.0", id: 1, method: "tools/list" } },
+  {
+    name: "no key",
+    path: `/mcp/${alias}`,
+    headers: {},
+    body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  },
   {
     name: "wrong key",
     path: `/mcp/${alias}`,
@@ -206,14 +212,17 @@ rows.push({
   });
 }
 
-
 // ---- extended checks ---------------------------------------------------------------
 const policy = JSON.parse(readFileSync(resolveFromRoot("config/tool-policy.json"), "utf8"));
 const allowedNames = new Set([...Object.keys(policy.allowedActions), ...policy.noActionTools]);
 
 // tools/list: only allowlisted tools, and no blocked action is advertised
 {
-  const r = await rawPost(`/mcp/${alias}`, { "x-api-key": key }, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+  const r = await rawPost(
+    `/mcp/${alias}`,
+    { "x-api-key": key },
+    { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  );
   const tools = (() => {
     try {
       return JSON.parse(r.text)?.result?.tools ?? [];
@@ -226,7 +235,12 @@ const allowedNames = new Set([...Object.keys(policy.allowedActions), ...policy.n
   rows.push({
     check: "tools/list only allowlisted",
     result: r.status === 200 && names.length > 0 && extra.length === 0 ? "PASS" : "FAIL",
-    detail: r.status !== 200 ? `HTTP ${r.status}` : extra.length ? `unexpected: ${extra.join(",")}` : `${names.length} tools`,
+    detail:
+      r.status !== 200
+        ? `HTTP ${r.status}`
+        : extra.length
+          ? `unexpected: ${extra.join(",")}`
+          : `${names.length} tools`,
   });
   const blockedAdvertised = [];
   for (const t of tools) {
@@ -238,7 +252,9 @@ const allowedNames = new Set([...Object.keys(policy.allowedActions), ...policy.n
   rows.push({
     check: "no blocked action advertised",
     result: blockedAdvertised.length === 0 ? "PASS" : "FAIL",
-    detail: blockedAdvertised.length ? blockedAdvertised.join(",") : "none (e.g. wit_backlog.reorder hidden)",
+    detail: blockedAdvertised.length
+      ? blockedAdvertised.join(",")
+      : "none (e.g. wit_backlog.reorder hidden)",
   });
 }
 
@@ -265,7 +281,12 @@ for (const [label, name, a] of [
   rows.push({
     check: "no internals in error bodies",
     result: malformed.status === 400 && leaks.length === 0 ? "PASS" : "FAIL",
-    detail: malformed.status !== 400 ? `malformed JSON gave HTTP ${malformed.status}` : leaks.length ? "leak pattern found" : "clean",
+    detail:
+      malformed.status !== 400
+        ? `malformed JSON gave HTTP ${malformed.status}`
+        : leaks.length
+          ? "leak pattern found"
+          : "clean",
   });
 }
 
@@ -275,7 +296,11 @@ if (isLocal || args["test-limits"]) {
   let got429 = false;
   let retryAfter = null;
   for (let i = 0; i < 30 && !got429; i++) {
-    const r = await rawPost("/mcp/limit-probe-alias", { "x-api-key": `probe-${i}` }, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+    const r = await rawPost(
+      "/mcp/limit-probe-alias",
+      { "x-api-key": `probe-${i}` },
+      { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    );
     if (r.status === 429) {
       got429 = true;
       retryAfter = r.headers.get("retry-after");
@@ -286,14 +311,22 @@ if (isLocal || args["test-limits"]) {
     result: got429 && retryAfter === "60" ? "PASS" : "FAIL",
     detail: got429 ? `429 with Retry-After ${retryAfter}` : "no 429 after 30 bad requests",
   });
-  const still = await rawPost(`/mcp/${alias}`, { "x-api-key": key }, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+  const still = await rawPost(
+    `/mcp/${alias}`,
+    { "x-api-key": key },
+    { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  );
   rows.push({
     check: "throttle does not lock out the real alias",
     result: still.status === 200 ? "PASS" : "FAIL",
     detail: `HTTP ${still.status}`,
   });
 } else {
-  rows.push({ check: "failed-request throttle (429)", result: "WARN", detail: "skipped on remote base; pass --test-limits to run" });
+  rows.push({
+    check: "failed-request throttle (429)",
+    result: "WARN",
+    detail: "skipped on remote base; pass --test-limits to run",
+  });
 }
 
 // TLS checks only for https

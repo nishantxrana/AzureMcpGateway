@@ -30,9 +30,7 @@ if (platform !== "linux" && !dryRun) {
 function run(cmd, args, opts = {}) {
   const r = runCommand(cmd, args, { cwd: root, stdio: "inherit", ...opts });
   if (r.status !== 0) {
-    throw new Error(
-      `${cmd} ${args.join(" ")} failed (${r.error?.message ?? `exit ${r.status}`})`,
-    );
+    throw new Error(`${cmd} ${args.join(" ")} failed (${r.error?.message ?? `exit ${r.status}`})`);
   }
 }
 

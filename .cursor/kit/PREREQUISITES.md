@@ -6,14 +6,14 @@ Work top to bottom. Each section ends with a check. Do not skip A: it decides th
 
 ## A. Decisions to make first (10 minutes)
 
-| Decision | Recommended | Why |
-|---|---|---|
-| ADO org name spelling | Exactly what appears in `https://dev.azure.com/<name>`. Your output showed `coolops` (an earlier message said `coolosp`) | A typo gives confusing 401/404 errors |
-| Alias per org | Short lowercase, e.g. `coolops` | Becomes the URL path `/mcp/<alias>` and part of secret names |
-| Identity type per org | **PAT from a dedicated service account** now; **service principal** if the org is Entra-backed and you have admin rights | PATs are simplest. Microsoft recommends Entra-based auth |
-| Are all your orgs in ONE Entra tenant? | Find out (Organization settings > Microsoft Entra) | Service principals only work from the tenant the org is connected to |
-| Azure region and plan SKU | A region near you (e.g. Central India). `B1` for dev, `P0v3` or `S1` for anything with a staging slot | **Staging slots need Standard tier or higher. `B1` has no slots** |
-| Names | `rg-adomcp-<env>`, `kv-adomcp-<env>-<suffix>`, `app-adomcp-<env>` | Key Vault names must be globally unique |
+| Decision                               | Recommended                                                                                                              | Why                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| ADO org name spelling                  | Exactly what appears in `https://dev.azure.com/<name>`. Your output showed `coolops` (an earlier message said `coolosp`) | A typo gives confusing 401/404 errors                                |
+| Alias per org                          | Short lowercase, e.g. `coolops`                                                                                          | Becomes the URL path `/mcp/<alias>` and part of secret names         |
+| Identity type per org                  | **PAT from a dedicated service account** now; **service principal** if the org is Entra-backed and you have admin rights | PATs are simplest. Microsoft recommends Entra-based auth             |
+| Are all your orgs in ONE Entra tenant? | Find out (Organization settings > Microsoft Entra)                                                                       | Service principals only work from the tenant the org is connected to |
+| Azure region and plan SKU              | A region near you (e.g. Central India). `B1` for dev, `P0v3` or `S1` for anything with a staging slot                    | **Staging slots need Standard tier or higher. `B1` has no slots**    |
+| Names                                  | `rg-adomcp-<env>`, `kv-adomcp-<env>-<suffix>`, `app-adomcp-<env>`                                                        | Key Vault names must be globally unique                              |
 
 **Important date:** global PATs (created for "All accessible organizations") stop working on **2026-12-01**. Every PAT you create for this must be scoped to **one specific organization**.
 
@@ -57,9 +57,9 @@ Work top to bottom. Each section ends with a check. Do not skip A: it decides th
 
 ## D. Which tenant is which (write this down)
 
-| Thing | Tenant |
-|---|---|
-| Azure DevOps org(s) | ______ |
+| Thing                                       | Tenant |
+| ------------------------------------------- | ------ |
+| Azure DevOps org(s)                         | ______ |
 | Azure subscription (App Service, Key Vault) | ______ |
 | Power Platform / Copilot Studio environment | ______ |
 
@@ -99,13 +99,13 @@ Work top to bottom. Each section ends with a check. Do not skip A: it decides th
 
 ## G. Secrets inventory (create these; never put values in git, chat or app settings)
 
-| Secret name (Key Vault) | What | Who creates | Rotation |
-|---|---|---|---|
-| `ado-<alias>-pat` | Org-scoped read-only PAT of the service account | ADO admin | 90 days |
-| `ado-<alias>-sp-secret` | Service principal secret (only if using SP) | Entra admin | 6 to 12 months |
-| `mcp-<alias>-key-a` | Client API key for Copilot Studio | You (`openssl rand -hex 32`) | 90 days |
-| `mcp-<alias>-key-b` | Spare key for zero-downtime rotation | You | Only during rotation |
-| `mcp-admin-key` | Key for the detailed `/readyz` view | You | 90 days |
+| Secret name (Key Vault) | What                                            | Who creates                  | Rotation             |
+| ----------------------- | ----------------------------------------------- | ---------------------------- | -------------------- |
+| `ado-<alias>-pat`       | Org-scoped read-only PAT of the service account | ADO admin                    | 90 days              |
+| `ado-<alias>-sp-secret` | Service principal secret (only if using SP)     | Entra admin                  | 6 to 12 months       |
+| `mcp-<alias>-key-a`     | Client API key for Copilot Studio               | You (`openssl rand -hex 32`) | 90 days              |
+| `mcp-<alias>-key-b`     | Spare key for zero-downtime rotation            | You                          | Only during rotation |
+| `mcp-admin-key`         | Key for the detailed `/readyz` view             | You                          | 90 days              |
 
 Set a secret without leaving the value in shell history:
 
@@ -131,23 +131,23 @@ If a real PAT or key has ever been pasted into a chat, ticket or screenshot, rev
 
 ## I. Order of operations (which script runs when)
 
-| Step | Action | Script / command | Needs |
-|---|---|---|---|
-| 1 | Decisions and tenant map | sections A and D | none |
-| 2 | Create service account, PAT (or SP) per org | section B | ADO admin |
-| 3 | Local tooling | section F | none |
-| 4 | Build with Cursor, phase by phase | `/gw-plan`, then `/gw-phase-N-*` | none |
-| 5 | Local proof, no Azure | `verify:local`, `verify:drift`, `verify:secrets` | Node only |
-| 6 | Local proof against real ADO | `verify:org` (local gateway, `.env.local`) and `parity.mjs` | PAT |
-| 7 | Deploy infrastructure | `az deployment group what-if`, then `create` | section C |
-| 8 | Put secrets into Key Vault | section G | Secrets Officer role |
-| 9 | Azure configuration audit | `verify:azure` | `az` login |
-| 10 | Pipeline builds and validates the zip on Linux | `package.mjs`, `verify:package` | section H |
-| 11 | Deploy to **staging slot** (or directly in dev) | pipeline stage 3 | secrets in place |
-| 12 | Security and live checks on staging | `verify:security`, `verify:org`, `verify:soak` | keys, PAT |
-| 13 | Approve and swap to production | pipeline approval | step 12 all green |
-| 14 | Connect Copilot Studio | `docs/COPILOT-STUDIO.md` | section E |
-| 15 | Test with a second user | section E.5 | second account |
+| Step | Action                                          | Script / command                                            | Needs                |
+| ---- | ----------------------------------------------- | ----------------------------------------------------------- | -------------------- |
+| 1    | Decisions and tenant map                        | sections A and D                                            | none                 |
+| 2    | Create service account, PAT (or SP) per org     | section B                                                   | ADO admin            |
+| 3    | Local tooling                                   | section F                                                   | none                 |
+| 4    | Build with Cursor, phase by phase               | `/gw-plan`, then `/gw-phase-N-*`                            | none                 |
+| 5    | Local proof, no Azure                           | `verify:local`, `verify:drift`, `verify:secrets`            | Node only            |
+| 6    | Local proof against real ADO                    | `verify:org` (local gateway, `.env.local`) and `parity.mjs` | PAT                  |
+| 7    | Deploy infrastructure                           | `az deployment group what-if`, then `create`                | section C            |
+| 8    | Put secrets into Key Vault                      | section G                                                   | Secrets Officer role |
+| 9    | Azure configuration audit                       | `verify:azure`                                              | `az` login           |
+| 10   | Pipeline builds and validates the zip on Linux  | `package.mjs`, `verify:package`                             | section H            |
+| 11   | Deploy to **staging slot** (or directly in dev) | pipeline stage 3                                            | secrets in place     |
+| 12   | Security and live checks on staging             | `verify:security`, `verify:org`, `verify:soak`              | keys, PAT            |
+| 13   | Approve and swap to production                  | pipeline approval                                           | step 12 all green    |
+| 14   | Connect Copilot Studio                          | `docs/COPILOT-STUDIO.md`                                    | section E            |
+| 15   | Test with a second user                         | section E.5                                                 | second account       |
 
 ---
 

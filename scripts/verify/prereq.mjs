@@ -16,14 +16,10 @@ import {
 
 const args = parseArgs();
 if (args.help) {
-  printHelp(
-    "verify:prereq",
-    "node scripts/verify/prereq.mjs [--vault <name>]",
-    {
-      vault: "Optional Key Vault name (checks secret names exist via az, values never logged)",
-      help: "Show help",
-    },
-  );
+  printHelp("verify:prereq", "node scripts/verify/prereq.mjs [--vault <name>]", {
+    vault: "Optional Key Vault name (checks secret names exist via az, values never logged)",
+    help: "Show help",
+  });
   process.exit(0);
 }
 
@@ -91,15 +87,25 @@ if (args.vault) {
     let missing = 0;
     for (const name of needed) {
       const r = runCommand("az", [
-        "keyvault", "secret", "show", "--vault-name", String(args.vault),
-        "--name", name, "--query", "name", "-o", "tsv",
+        "keyvault",
+        "secret",
+        "show",
+        "--vault-name",
+        String(args.vault),
+        "--name",
+        name,
+        "--query",
+        "name",
+        "-o",
+        "tsv",
       ]);
       if (r.status !== 0) missing++;
     }
     rows.push({
       check: "vault secret names",
       result: missing === 0 ? "PASS" : "FAIL",
-      detail: missing === 0 ? `${needed.size} names present` : `${missing} missing (names only checked)`,
+      detail:
+        missing === 0 ? `${needed.size} names present` : `${missing} missing (names only checked)`,
     });
   }
 }

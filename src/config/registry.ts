@@ -22,10 +22,7 @@ const aliasSchema = z
 
 const adoOrgSchema = z
   .string()
-  .regex(
-    /^[A-Za-z0-9][A-Za-z0-9-]{0,49}$/,
-    "adoOrg must match ^[A-Za-z0-9][A-Za-z0-9-]{0,49}$",
-  );
+  .regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,49}$/, "adoOrg must match ^[A-Za-z0-9][A-Za-z0-9-]{0,49}$");
 
 const secretNameSchema = z
   .string()

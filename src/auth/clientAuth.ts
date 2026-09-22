@@ -47,10 +47,7 @@ export class ApiKeyAuthenticator implements ClientAuthenticator {
     for (const org of registry.orgs) this.orgByAlias.set(org.alias, org);
   }
 
-  static async create(
-    registry: Registry,
-    secrets: SecretProvider,
-  ): Promise<ApiKeyAuthenticator> {
+  static async create(registry: Registry, secrets: SecretProvider): Promise<ApiKeyAuthenticator> {
     const auth = new ApiKeyAuthenticator(registry, secrets);
     // Prime health state so /readyz is meaningful right after startup.
     for (const org of registry.orgs) await auth.resolveDigests(org);
@@ -93,10 +90,7 @@ export class ApiKeyAuthenticator implements ClientAuthenticator {
     presentedKey: string | undefined,
   ): Promise<{ ok: true; org: OrgEntry } | { ok: false }> {
     const org = this.orgByAlias.get(alias);
-    const presented =
-      presentedKey === undefined || presentedKey.trim() === ""
-        ? ""
-        : presentedKey;
+    const presented = presentedKey === undefined || presentedKey.trim() === "" ? "" : presentedKey;
     const presentedDigest = sha256(presented);
 
     const digests = org ? await this.resolveDigests(org) : [];

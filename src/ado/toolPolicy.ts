@@ -23,16 +23,15 @@ interface PolicyFile {
 // Same relative depth from src/ado (tsx, vitest) and dist/ado (built): ../../config
 const policyFile = require("../../config/tool-policy.json") as PolicyFile;
 
-export const ALLOWED_ACTIONS: Readonly<Record<string, readonly string[]>> =
-  Object.freeze({ ...policyFile.allowedActions });
+export const ALLOWED_ACTIONS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  ...policyFile.allowedActions,
+});
 
-export const NO_ACTION_TOOLS: readonly string[] = Object.freeze([
-  ...policyFile.noActionTools,
-]);
+export const NO_ACTION_TOOLS: readonly string[] = Object.freeze([...policyFile.noActionTools]);
 
-export const REVIEWED_BLOCKED_ACTIONS: Readonly<
-  Record<string, readonly string[]>
-> = Object.freeze({ ...policyFile.reviewedBlockedActions });
+export const REVIEWED_BLOCKED_ACTIONS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  ...policyFile.reviewedBlockedActions,
+});
 
 export const DEFAULT_ALLOWLIST: readonly string[] = Object.freeze([
   ...Object.keys(ALLOWED_ACTIONS),
@@ -46,8 +45,7 @@ export const ACTION_DENY_REGEX =
 export const READ_ACTION_REGEX = /^(get|list|search|find|read|my|wiql|query)/i;
 
 /** Tool names that must never be enabled through extraAllow. */
-export const WRITE_TOOL_NAME_REGEX =
-  /(^|_)(write|create|upsert|update|delete|remove|set)(_|$)/i;
+export const WRITE_TOOL_NAME_REGEX = /(^|_)(write|create|upsert|update|delete|remove|set)(_|$)/i;
 
 export interface ToolPolicyConfig {
   extraAllow?: string[];
@@ -63,10 +61,7 @@ export function resolveAllowedTools(policy?: ToolPolicyConfig): Set<string> {
   return allowed;
 }
 
-export function isToolAllowed(
-  toolName: string,
-  policy?: ToolPolicyConfig,
-): boolean {
+export function isToolAllowed(toolName: string, policy?: ToolPolicyConfig): boolean {
   return resolveAllowedTools(policy).has(toolName);
 }
 
@@ -141,13 +136,10 @@ interface SchemaLike {
  * Narrow the `action` enum advertised to the model to the permitted actions only,
  * so blocked actions (for example reorder) are not even shown. Never mutates input.
  */
-export function sanitizeTool<T extends { name: string; inputSchema?: unknown }>(
-  tool: T,
-): T {
+export function sanitizeTool<T extends { name: string; inputSchema?: unknown }>(tool: T): T {
   const schema = tool.inputSchema as SchemaLike | undefined;
   const actionProp = schema?.properties?.action as
-    | { enum?: unknown; [k: string]: unknown }
-    | undefined;
+    { enum?: unknown; [k: string]: unknown } | undefined;
   if (!schema || !actionProp || !Array.isArray(actionProp.enum)) return tool;
 
   const builtIn = ALLOWED_ACTIONS[tool.name];
@@ -169,9 +161,10 @@ export function sanitizeTool<T extends { name: string; inputSchema?: unknown }>(
   };
 }
 
-export function filterToolsByPolicy<
-  T extends { name: string; inputSchema?: unknown },
->(tools: T[], policy?: ToolPolicyConfig): T[] {
+export function filterToolsByPolicy<T extends { name: string; inputSchema?: unknown }>(
+  tools: T[],
+  policy?: ToolPolicyConfig,
+): T[] {
   const allowed = resolveAllowedTools(policy);
   return tools.filter((t) => allowed.has(t.name)).map((t) => sanitizeTool(t));
 }

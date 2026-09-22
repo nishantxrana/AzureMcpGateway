@@ -57,10 +57,7 @@
                         "pattern": "^[a-zA-Z0-9-]{1,127}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "secret"
-                    ],
+                    "required": ["type", "secret"],
                     "additionalProperties": false
                   },
                   {
@@ -83,12 +80,7 @@
                         "pattern": "^[a-zA-Z0-9-]{1,127}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "tenantId",
-                      "clientId",
-                      "secret"
-                    ],
+                    "required": ["type", "tenantId", "clientId", "secret"],
                     "additionalProperties": false
                   }
                 ]
@@ -150,22 +142,13 @@
                 "type": "string"
               }
             },
-            "required": [
-              "alias",
-              "adoOrg",
-              "domains",
-              "auth",
-              "clientKeys"
-            ],
+            "required": ["alias", "adoOrg", "domains", "auth", "clientKeys"],
             "additionalProperties": false
           },
           "minItems": 1
         }
       },
-      "required": [
-        "version",
-        "orgs"
-      ],
+      "required": ["version", "orgs"],
       "additionalProperties": false
     }
   },

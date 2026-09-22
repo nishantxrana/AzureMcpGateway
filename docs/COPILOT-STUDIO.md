@@ -2,15 +2,15 @@
 
 ## Per-org MCP server entry
 
-| Field | Value |
-|---|---|
-| Server name | `ADO <alias>` (e.g. `ADO coolops`) |
-| Description | Read-only Azure DevOps tools via gateway |
-| URL | `https://<host>/mcp/<alias>` |
-| Authentication | API key |
-| Type | Header |
-| Header name | `X-API-Key` |
-| Header value | Value of `mcp-<alias>-key-a` (from Key Vault) |
+| Field          | Value                                         |
+| -------------- | --------------------------------------------- |
+| Server name    | `ADO <alias>` (e.g. `ADO coolops`)            |
+| Description    | Read-only Azure DevOps tools via gateway      |
+| URL            | `https://<host>/mcp/<alias>`                  |
+| Authentication | API key                                       |
+| Type           | Header                                        |
+| Header name    | `X-API-Key`                                   |
+| Header value   | Value of `mcp-<alias>-key-a` (from Key Vault) |
 
 ## Agent settings
 

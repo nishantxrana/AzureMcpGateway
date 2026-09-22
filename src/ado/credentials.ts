@@ -14,9 +14,7 @@ export async function buildCredentials(
     const pat = await secrets.getSecret(org.auth.secret);
     return {
       env: {
-        PERSONAL_ACCESS_TOKEN: Buffer.from(`mcp:${pat}`, "utf8").toString(
-          "base64",
-        ),
+        PERSONAL_ACCESS_TOKEN: Buffer.from(`mcp:${pat}`, "utf8").toString("base64"),
       },
       authArgs: ["--authentication", "pat"],
     };

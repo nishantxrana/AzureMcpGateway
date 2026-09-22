@@ -41,7 +41,9 @@ export function preflight(checks) {
   let ok = true;
   for (const c of checks) {
     const pass = Boolean(c.ok);
-    console.log(`${pass ? "PASS" : "FAIL"} | ${c.name} | ${c.detail}${pass ? "" : ` | fix: ${c.fix ?? "see docs"}`}`);
+    console.log(
+      `${pass ? "PASS" : "FAIL"} | ${c.name} | ${c.detail}${pass ? "" : ` | fix: ${c.fix ?? "see docs"}`}`,
+    );
     if (!pass) ok = false;
   }
   if (!ok) {
@@ -111,9 +113,7 @@ export function runCommand(cmd, args = [], opts = {}) {
 /** Human-readable reason a spawn failed (spawn error, stderr, or exit code). */
 export function describeFailure(r, max = 500) {
   const text =
-    r.error?.message ||
-    `${r.stdout ?? ""}\n${r.stderr ?? ""}`.trim() ||
-    `exit ${r.status}`;
+    r.error?.message || `${r.stdout ?? ""}\n${r.stderr ?? ""}`.trim() || `exit ${r.status}`;
   return String(text).replace(/\s+/g, " ").slice(-max);
 }
 
