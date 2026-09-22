@@ -16,7 +16,15 @@ export async function buildCredentials(
       env: {
         PERSONAL_ACCESS_TOKEN: Buffer.from(`mcp:${pat}`, "utf8").toString("base64"),
       },
-      authArgs: ["--authentication", "pat"],
+           // --tenant is unused by the ADO MCP binary's "pat" auth branch, but its
+      // presence skips getOrgTenant()'s live HEAD request to
+      // vssps.dev.azure.com, which is otherwise made on every single spawn.
+      authArgs: [
+        "--authentication",
+        "pat",
+        "--tenant",
+        "00000000-0000-0000-0000-000000000000",
+      ],
     };
   }
 
@@ -27,6 +35,8 @@ export async function buildCredentials(
       AZURE_CLIENT_ID: org.auth.clientId,
       AZURE_CLIENT_SECRET: clientSecret,
     },
-    authArgs: ["--authentication", "env"],
+    // Real tenant here — needed for OAuth authority scoping, and also skips
+    // the same getOrgTenant() network call.
+    authArgs: ["--authentication", "env", "--tenant", org.auth.tenantId],
   };
 }

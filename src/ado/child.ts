@@ -122,6 +122,15 @@ export async function withAdoChild<T>(
 
   const client = new Client({ name: "ado-gateway", version: "0.1.0" });
 
+  // Attached before connect(): if the child dies during the handshake itself,
+  // this is the only place its diagnostic output is ever captured.
+  let childStderr = "";
+  transport.stderr?.on("data", (chunk: Buffer) => {
+    const text = chunk.toString("utf8").slice(0, 500);
+    childStderr += text;
+    opts.logger.debug({ alias: opts.org.alias, stderr: text }, "child stderr");
+  });
+
   let timedOut = false;
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   const timeoutTimer = setTimeout(() => {
@@ -140,21 +149,15 @@ export async function withAdoChild<T>(
 
   try {
     await client.connect(transport);
-
-    const stderr = transport.stderr;
-    if (stderr) {
-      stderr.on("data", (chunk: Buffer) => {
-        const text = chunk.toString("utf8").slice(0, 500);
-        opts.logger.debug({ alias: opts.org.alias, stderr: text }, "child stderr");
-      });
-    }
-
     return await fn(client);
   } catch (err) {
     if (timedOut) {
       throw new Error(`Child timed out after ${opts.childTimeoutMs}ms`);
     }
-    throw err;
+    const baseMsg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      childStderr ? `${baseMsg} | child stderr: ${childStderr}` : baseMsg,
+    );
   } finally {
     clearTimeout(timeoutTimer);
     if (killTimer) clearTimeout(killTimer);

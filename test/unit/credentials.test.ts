@@ -21,7 +21,12 @@ describe("credentials", () => {
       limits: { ratePerMinute: 120, maxResponseChars: 60000 },
     };
     const c = await buildCredentials(org, secrets);
-    expect(c.authArgs).toEqual(["--authentication", "pat"]);
+    expect(c.authArgs).toEqual([
+      "--authentication",
+      "pat",
+      "--tenant",
+      "00000000-0000-0000-0000-000000000000",
+    ]);
     expect(c.env.PERSONAL_ACCESS_TOKEN).toBe(
       Buffer.from("mcp:value-for-ado-coolops-pat", "utf8").toString("base64"),
     );
@@ -44,7 +49,12 @@ describe("credentials", () => {
       limits: { ratePerMinute: 120, maxResponseChars: 60000 },
     };
     const c = await buildCredentials(org, secrets);
-    expect(c.authArgs).toEqual(["--authentication", "env"]);
+    expect(c.authArgs).toEqual([
+      "--authentication",
+      "env",
+      "--tenant",
+      "00000000-0000-0000-0000-000000000001",
+    ]);
     expect(c.env).toEqual({
       AZURE_TENANT_ID: "00000000-0000-0000-0000-000000000001",
       AZURE_CLIENT_ID: "00000000-0000-0000-0000-000000000002",
