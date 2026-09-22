@@ -24,7 +24,7 @@
     "verify:prereq": "node scripts/verify/prereq.mjs",
     "verify:package": "node scripts/verify/package.mjs",
     "package": "node scripts/package.mjs",
-    "postinstall": "node scripts/patch-msal-stub.mjs",
+    "postinstall": "node -e \"const fs=require('fs');const path=require('path');const t=path.resolve('node_modules/@azure/msal-node-extensions');const k=path.resolve('node_modules/keytar');fs.rmSync(t,{recursive:true,force:true});fs.rmSync(k,{recursive:true,force:true});fs.mkdirSync(t,{recursive:true});fs.writeFileSync(path.join(t,'package.json'),JSON.stringify({name:'@azure/msal-node-extensions',version:'5.3.5',type:'module',main:'index.js'},null,2)+'\\n');fs.writeFileSync(path.join(t,'index.js'),'export class NativeBrokerPlugin {\\n  constructor() {}\\n}\\n');console.log('patch-msal-stub: replaced @azure/msal-node-extensions with a no-op stub');\"",
     "preonboard": "npm run build",
     "onboard": "node scripts/onboard-org.mjs"
   },
