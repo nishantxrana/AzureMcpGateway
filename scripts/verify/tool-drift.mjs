@@ -90,7 +90,7 @@ const transport = new StdioClientTransport({
   "--domains", ...domains,
 ],
   env: { PATH: process.env.PATH || "", PERSONAL_ACCESS_TOKEN: Buffer.from("mcp:dummy").toString("base64") },
-  stderr: "ignore",
+  stderr: "pipe",
 });
 const client = new Client({ name: "drift", version: "1" });
 await client.connect(transport);

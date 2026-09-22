@@ -26,6 +26,9 @@ stages:
           - script: npm ci
             displayName: npm ci
 
+          - script: grep -n "tenant" scripts/verify/tool-drift.mjs || echo "TENANT FLAG NOT FOUND"
+            displayName: Sanity check tenant fix is present
+
           # lint + build + typecheck + unit and integration tests, offline (fake ADO child)
           - script: npm run verify:local
             displayName: verify:local
