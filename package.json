@@ -24,6 +24,7 @@
     "verify:prereq": "node scripts/verify/prereq.mjs",
     "verify:package": "node scripts/verify/package.mjs",
     "package": "node scripts/package.mjs",
+    "postinstall": "node scripts/patch-msal-stub.mjs",
     "preonboard": "npm run build",
     "onboard": "node scripts/onboard-org.mjs"
   },

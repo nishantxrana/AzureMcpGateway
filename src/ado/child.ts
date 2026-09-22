@@ -155,9 +155,7 @@ export async function withAdoChild<T>(
       throw new Error(`Child timed out after ${opts.childTimeoutMs}ms`);
     }
     const baseMsg = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      childStderr ? `${baseMsg} | child stderr: ${childStderr}` : baseMsg,
-    );
+    throw new Error(childStderr ? `${baseMsg} | child stderr: ${childStderr}` : baseMsg);
   } finally {
     clearTimeout(timeoutTimer);
     if (killTimer) clearTimeout(killTimer);

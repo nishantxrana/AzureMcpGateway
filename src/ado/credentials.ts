@@ -16,15 +16,10 @@ export async function buildCredentials(
       env: {
         PERSONAL_ACCESS_TOKEN: Buffer.from(`mcp:${pat}`, "utf8").toString("base64"),
       },
-           // --tenant is unused by the ADO MCP binary's "pat" auth branch, but its
+      // --tenant is unused by the ADO MCP binary's "pat" auth branch, but its
       // presence skips getOrgTenant()'s live HEAD request to
       // vssps.dev.azure.com, which is otherwise made on every single spawn.
-      authArgs: [
-        "--authentication",
-        "pat",
-        "--tenant",
-        "00000000-0000-0000-0000-000000000000",
-      ],
+      authArgs: ["--authentication", "pat", "--tenant", "00000000-0000-0000-0000-000000000000"],
     };
   }
 
